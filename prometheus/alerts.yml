@@ -1,0 +1,10 @@
+groups:
+- name: django-alerts
+  rules:
+  - alert: DjangoDown
+    expr: up{job="django"} == 0
+    for: 10s
+    labels:
+      severity: critical
+    annotations:
+      summary: "El servicio Django no responde al endpoint /metrics"
