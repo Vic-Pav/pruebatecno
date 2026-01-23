@@ -32,9 +32,10 @@ services:
       INFLUX_ORG: prueba
       INFLUX_BUCKET: metrics
       DEBUG: "False"
+      PROM_RULES_PATH: /prometheus/alerts.yml
     volumes:
       - ./pruebatecno:/pruebatecno
-      - ./prometheus:/prometheus
+      - ./prometheus:/prometheus:rw
     networks:
       - prueba
     ports:
@@ -46,8 +47,7 @@ services:
   prometheus:
     image: prom/prometheus
     volumes:
-    - ./prometheus/prometheus.yml:/prometheus/prometheus.yml:ro
-    - ./prometheus/alerts.yml:/prometheus/alerts.yml:ro
+    - ./prometheus:/prometheus:ro
     networks:
       - prueba
     command:
@@ -82,6 +82,7 @@ services:
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: mytoken
     volumes:
       - influxdb_data:/var/lib/influxdb2
+    privileged: true
     networks:
       - prueba
 
