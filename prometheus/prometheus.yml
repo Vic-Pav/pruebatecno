@@ -6,7 +6,8 @@ rule_files:
 
 scrape_configs:
   - job_name: "django"
-    metrics_path: /metrics
+    # Scrape the Influx-only endpoint that exposes Uso_CPU/ RAM
+    metrics_path: /metrics/influx/
     static_configs:
       - targets: ["web:8000"]
 

@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
 
   postgres:
@@ -8,33 +10,49 @@ services:
       POSTGRES_PASSWORD: admin
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - prueba
     ports:
       - "15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   web:
     build: ./pruebatecno
-    command: gunicorn pruebatecno.wsgi:application --bind 0.0.0.0:8000
-      
+    working_dir: /pruebatecno
+    command: sh -c "python manage.py migrate && gunicorn pruebatecno.wsgi:application --bind 0.0.0.0:8000"
     environment:
+      DATABASE_URL: postgres://admin:admin@postgres:5432/pruebadb
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: mytoken
       INFLUX_ORG: prueba
       INFLUX_BUCKET: metrics
-
+      DEBUG: "False"
     volumes:
       - ./pruebatecno:/pruebatecno
+      - ./prometheus:/prometheus
+    networks:
+      - prueba
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus
     volumes:
-      - ./prometheus/prometheus.yml:/prometheus/prometheus.yml
-      - ./prometheus/alerts.yml:/prometheus/alerts.yml
+    - ./prometheus/prometheus.yml:/prometheus/prometheus.yml:ro
+    - ./prometheus/alerts.yml:/prometheus/alerts.yml:ro
+    networks:
+      - prueba
     command:
       - "--config.file=/prometheus/prometheus.yml"
+      - "--web.enable-lifecycle"
     ports:
       - "19090:9090"
     depends_on:
@@ -44,6 +62,8 @@ services:
     image: prom/alertmanager
     volumes:
       - ./alertmanager/alertmanager.yml:/alertmanager/alertmanager.yml
+    networks:
+      - prueba
     command:
       - "--config.file=/alertmanager/alertmanager.yml"
     ports:
@@ -62,6 +82,8 @@ services:
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: mytoken
     volumes:
       - influxdb_data:/var/lib/influxdb2
+    networks:
+      - prueba
 
   grafana:
     image: grafana/grafana
@@ -70,10 +92,20 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - prueba
     depends_on:
       - influxdb
+
 
 volumes:
   postgres_data:
   influxdb_data:
   grafana_data:
+
+networks:
+  prueba:
+    driver: bridge
+
+
+

@@ -1,10 +1,10 @@
 groups:
-- name: django-alerts
+- name: django-managed-alerts
   rules:
-  - alert: DjangoDown
-    expr: up{job="django"} == 0
-    for: 10s
+  - alert: Alerta CPU
+    annotations:
+      summary: Alert Alerta CPU triggered
+    expr: Uso_CPU < 90.0
+    for: 1m
     labels:
       severity: critical
-    annotations:
-      summary: "El servicio Django no responde al endpoint /metrics"
