@@ -1,31 +1,24 @@
 groups:
 - name: django-managed-alerts
   rules:
-  - alert: Alerta unica RAM
-    annotations:
-      summary: Alert Alerta unica RAM triggered
-    expr: Uso_RAM < 90.0
-    for: 1m
-    labels:
-      severity: info
   - alert: Alerta CPU
     annotations:
       summary: Alert Alerta CPU triggered
-    expr: Uso_CPU > 3.0
-    for: 1m
-    labels:
-      severity: warning
-  - alert: Alerta AM
-    annotations:
-      summary: Alert Alerta AM triggered
-    expr: Uso_RAM > 5.0
-    for: 30s
-    labels:
-      severity: warning
-  - alert: alerta pm
-    annotations:
-      summary: Alert alerta pm triggered
-    expr: Uso_CPU < 5.0 and Uso_RAM < 5.0
+    expr: Uso_CPU < 5.0
     for: 45s
+    labels:
+      severity: warning
+  - alert: Prueba RAM
+    annotations:
+      summary: Alert Prueba RAM triggered
+    expr: Uso_RAM < 25.0
+    for: 10m
+    labels:
+      severity: info
+  - alert: Prueba combinada CPU y RAM
+    annotations:
+      summary: Alert Prueba combinada CPU y RAM triggered
+    expr: Uso_CPU < 5.0 and Uso_RAM < 15.0
+    for: 10s
     labels:
       severity: critical

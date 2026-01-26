@@ -6,3 +6,4 @@ psutil
 influxdb-client
 PyYAML>=6.0
 whitenoise>=6.0
+prometheus-client>=0.17.1

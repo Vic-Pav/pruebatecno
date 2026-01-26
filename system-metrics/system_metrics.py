@@ -1,11 +1,10 @@
 import psutil
-import psutil
 import time
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 client = InfluxDBClient(
-    url="http://localhost:18086",   
+    url="http://localhost:8086",
     token="mytoken",
     org="prueba"
 )

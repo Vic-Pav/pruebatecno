@@ -55,6 +55,14 @@ LOGGING = {
     }
 }
 
+NO_FILE_LOG = os.getenv("NO_FILE_LOG", "0") == "1"
+if NO_FILE_LOG:
+    # Quita el handler de archivo si no hay permisos
+    if "file" in LOGGING.get("handlers", {}):
+        LOGGING["handlers"].pop("file", None)
+    # Deja solo consola en root handlers
+    LOGGING["root"]["handlers"] = [h for h in LOGGING["root"]["handlers"] if h != "file"]
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 

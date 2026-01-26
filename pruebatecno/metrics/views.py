@@ -18,7 +18,7 @@ def fetch_influx_metrics():
 	Avoids relying on shared Gauge objects across processes; callers can
 	render these into a temporary registry per-request.
 	"""
-	url = os.getenv('INFLUX_URL', 'http://influxdb:18086')
+	url = os.getenv('INFLUX_URL', 'http://influxdb:8086')
 	token = os.getenv('INFLUX_TOKEN', 'mytoken')
 	org = os.getenv('INFLUX_ORG', 'prueba')
 	results = {}
