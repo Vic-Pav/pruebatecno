@@ -16,7 +16,7 @@ services:
       DEBUG: "False"
       PROM_RULES_PATH: /prometheus/alerts.yml
       NO_FILE_LOG: "1"
-    user: "1000:1000"   # ajusta al UID:GID de tu usuario del host
+    user: "1000:1000"
     volumes:
       - ./pruebatecno:/pruebatecno
       - ./prometheus:/prometheus
@@ -27,7 +27,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-     
 
   postgres:
     image: postgres:15
@@ -62,6 +61,7 @@ services:
       - "19090:9090"
     depends_on:
       - web
+      - system_metrics_exporter
 
   alertmanager:
     image: prom/alertmanager
@@ -77,7 +77,7 @@ services:
   influxdb:
     image: influxdb:2.7
     ports:
-      - "8086:8086"
+      - "8086:8086"   # publicado en host
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: admin
@@ -102,11 +102,31 @@ services:
     depends_on:
       - influxdb
 
+  system_metrics_exporter:
+    image: python:3.12-slim
+    working_dir: /app
+    command: sh -c "pip install prometheus_client psutil influxdb-client && python system-metrics/system_metrics_exporter.py"
+    environment:
+      EXPORTER_PORT: "9153"
+      INTERVAL_SECS: "5"
+      ENABLE_INFLUX_WRITE: "1"
+      INFLUX_URL: "http://influxdb:8086"
+      INFLUX_TOKEN: "mytoken"
+      INFLUX_ORG: "prueba"
+      INFLUX_BUCKET: "metrics"
+    volumes:
+      - ./system-metrics:/app/system-metrics:ro
+    networks:
+      - prueba
+    ports:
+      - "19153:9153"   # opcional para probar desde host
+    depends_on:
+      - influxdb
+
 volumes:
   postgres_data:
   influxdb_data:
   grafana_data:
-  prometheus_data:
 
 networks:
   prueba:
