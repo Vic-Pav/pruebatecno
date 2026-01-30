@@ -72,10 +72,19 @@ SECRET_KEY = 'django-insecure-#rl06@ns24s%^=161x98j&3(!rd)#ukovgp-y0in4#x&wd8674
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"] #solo para desarrollo
+ALLOWED_HOSTS = ['*']
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost",
+    "http://127.0.0.1",
+]
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
+
+FORCE_SCRIPT_NAME = "/django"
+STATIC_URL = 'django/static/'
+MEDIA_URL = 'django/media/'
 
 # Application definition
 
@@ -175,8 +184,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = 'django/static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_FILES_DIRS = [BASE_DIR / "static"]
 
 WHITENOISE_AUTOREFRESH = os.getenv("DJANGO_DEBUG", "False") == "True"
 WHITENOISE_USE_FINDERS = True

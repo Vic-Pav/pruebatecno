@@ -22,8 +22,8 @@ services:
       - ./prometheus:/prometheus
     networks:
       - prueba
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,8 +57,10 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--web.enable-lifecycle"
-    ports:
-      - "19090:9090"
+      - "--web.external-url=/prometheus"
+      - "--web.route-prefix=/"
+    expose:
+      - "9090"
     depends_on:
       - web
       - system_metrics_exporter
@@ -66,18 +68,20 @@ services:
   alertmanager:
     image: prom/alertmanager
     volumes:
-      - ./alertmanager/alertmanager.yml:/alertmanager/alertmanager.yml
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     networks:
       - prueba
-    command:
-      - "--config.file=/alertmanager/alertmanager.yml"
-    ports:
-      - "19093:9093"
+    command: >
+      --config.file=/etc/alertmanager/alertmanager.yml
+      --web.external-url=http://localhost/alertmanager
+      --web.route-prefix=/
+    expose:
+      - "9093"
 
   influxdb:
     image: influxdb:2.7
     ports:
-      - "8086:8086"   # publicado en host
+      - "8086:8086"   # publicado en host (para UI y escrituras externas)
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: admin
@@ -92,13 +96,16 @@ services:
 
   grafana:
     image: grafana/grafana
-    ports:
-      - "13000:3000"
+    environment:
+      GF_SERVER_ROOT_URL: "http://localhost/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
     networks:
       - prueba
+    expose:
+      - "3000"
     depends_on:
       - influxdb
 
@@ -118,10 +125,31 @@ services:
       - ./system-metrics:/app/system-metrics:ro
     networks:
       - prueba
-    ports:
-      - "19153:9153"   # opcional para probar desde host
+    expose:
+      - "9153"
     depends_on:
       - influxdb
+
+  nginx:
+    image: nginx:1.25-alpine
+    depends_on:
+      web:
+        condition: service_started
+      grafana:
+        condition: service_started
+      prometheus:
+        condition: service_started
+      alertmanager:
+        condition: service_started
+    networks:
+      - prueba
+    ports:
+      - "80:80"
+      # - "443:443"  # si habilitas TLS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro  
+
 
 volumes:
   postgres_data:
