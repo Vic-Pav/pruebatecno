@@ -1,11 +1,10 @@
 import os
 import logging
 
-from django.shortcuts import render
 from django.http import HttpRequest
 from django_prometheus import exports
 
-from prometheus_client import Gauge, REGISTRY, CollectorRegistry, generate_latest
+from prometheus_client import Gauge, CollectorRegistry, generate_latest
 
 from influxdb_client import InfluxDBClient
 

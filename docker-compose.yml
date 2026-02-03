@@ -58,7 +58,7 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--web.enable-lifecycle"
       - "--web.external-url=/prometheus"
-      - "--web.route-prefix=/"
+      - "--web.route-prefix=/prometheus"
     expose:
       - "9090"
     depends_on:

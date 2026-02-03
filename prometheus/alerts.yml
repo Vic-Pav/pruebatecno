@@ -5,6 +5,6 @@ groups:
     annotations:
       summary: Alert Alerta CPU triggered
     expr: Uso_CPU > 2.0
-    for: 2s
+    for: 5s
     labels:
       severity: info
