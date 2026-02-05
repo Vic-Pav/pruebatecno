@@ -54,7 +54,7 @@ services:
       - ./prometheus/alerts.yml:/etc/prometheus/rules/alerts.yml:rw
     networks:
       - prueba
-    command:
+    command: 
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--web.enable-lifecycle"
       - "--web.external-url=/prometheus"
@@ -97,6 +97,7 @@ services:
   grafana:
     image: grafana/grafana
     environment:
+      GF_SERVER_DOMAIN: "localhost"
       GF_SERVER_ROOT_URL: "http://localhost/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
     volumes:
