@@ -2,6 +2,7 @@ Django == 5.2.10
 gunicorn
 psycopg2-binary
 django-prometheus
+djangorestframework==3.14.0
 psutil
 influxdb-client
 PyYAML>=6.0

@@ -164,7 +164,7 @@ services:
   redis_exporter:
     image: oliver006/redis_exporter:v1.62.0
     environment:
-      - REDIS_ADDR: "redis://redis:6379"
+      - REDIS_ADDR=redis:6379
     ports:
       - "9121:9121"
     networks:

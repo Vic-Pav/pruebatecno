@@ -1,5 +1,6 @@
 import os
 import logging
+from xmlrpc import client
 
 from django.http import HttpRequest
 from django_prometheus import exports
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def fetch_influx_metrics():
 	cached = cache.get('influx_latests_metrics')
-	if cached is not None:
+	if cached:
 		return cached
 	"""Return latest Influx values as a dict: {'Uso_CPU': val, 'Uso_RAM': val}.
 
@@ -25,22 +26,22 @@ def fetch_influx_metrics():
 	org = os.getenv('INFLUX_ORG', 'prueba')
 	results = {}
 	try:
-		client = InfluxDBClient(url=url, token=token, org=org)
-		query_api = client.query_api()
-		flux = 'from(bucket:"metrics") |> range(start: -1m) |> filter(fn: (r) => r._measurement == "metricas_pc") |> last()'
-		tables = query_api.query(flux)
-		for table in tables:
-			for record in table.records:
-				field = record.get_field()
-				value = record.get_value()
-				try:
-					results[field] = float(value)
-				except Exception:
-					logger.exception('Failed parsing Influx value for %s', field)
+		with InfluxDBClient(url=url, token=token, org=org) as client:
+			query_api = client.query_api()
+			flux = 'from(bucket:"metrics") |> range(start: -1m) |> filter(fn: (r) => r._measurement == "metricas_pc") |> last()'
+			tables = query_api.query(flux)
+			for table in tables:
+				for record in table.records:
+					field = record.get_field()
+					value = record.get_value()
+					try:
+						results[field] = float(value)
+					except Exception:
+						logger.exception('Failed parsing Influx value for %s', field)
 	except Exception:
 		logger.exception('Failed to query InfluxDB at %s', url)
-	cache.set('influx_latests_metrics', results, timeout=5)  # Cache for 1 minute
-	return results
+		cache.set('influx_latests_metrics', results, timeout=15)  
+		return results
 
 
 def metrics_with_influx(request: HttpRequest):

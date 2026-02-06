@@ -2,7 +2,7 @@ import time
 from django.utils.deprecation import MiddlewareMixin
 from influxdb_client import InfluxDBClient, Point
 import os
-
+from django_redis import get_redis_connection
 
 class InfluxMetricsMiddleware(MiddlewareMixin):
     def __init__(self, get_response=None):
@@ -36,4 +36,16 @@ class InfluxMetricsMiddleware(MiddlewareMixin):
         except Exception as e:
             print(f"[Influx middleware error] {e}")
 
+        return response
+    
+class CloseRedisConnectionsMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        try:
+            get_redis_connection("default").close()
+        except Exception:
+            pass
         return response

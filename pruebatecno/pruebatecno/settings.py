@@ -98,6 +98,8 @@ INSTALLED_APPS = [
     'django_prometheus',
     'tasks',
     'metrics',
+    "rest_framework",
+    'api',
 ]
 
 MIDDLEWARE = [
@@ -110,6 +112,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.CloseRedisConnectionsMiddleware"
     "metrics.middleware.InfluxMetricsMiddleware",
     'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
@@ -197,11 +200,24 @@ CACHES = {
         "LOCATION": REDIS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": {"max_connections": 100, "timeout": 5},
+            "CONNECTION_POOL_KWARGS": {"max_connections": 500, "retry_on_timeout": True, "timeout": 5},
         },
         "TIMEOUT": 300,  # 5 minutos
         "KEY_PREFIX": "pruebatecno"
     }
+}
+
+REST_FRAMEWORK = {
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+    ],
+
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
 }
 
 WHITENOISE_AUTOREFRESH = os.getenv("DJANGO_DEBUG", "False") == "True"
