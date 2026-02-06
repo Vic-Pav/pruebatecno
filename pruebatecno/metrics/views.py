@@ -3,7 +3,7 @@ import logging
 
 from django.http import HttpRequest
 from django_prometheus import exports
-
+from django.core.cache import cache
 from prometheus_client import Gauge, CollectorRegistry, generate_latest
 
 from influxdb_client import InfluxDBClient
@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_influx_metrics():
+	cached = cache.get('influx_latests_metrics')
+	if cached is not None:
+		return cached
 	"""Return latest Influx values as a dict: {'Uso_CPU': val, 'Uso_RAM': val}.
 
 	Avoids relying on shared Gauge objects across processes; callers can
@@ -36,6 +39,7 @@ def fetch_influx_metrics():
 					logger.exception('Failed parsing Influx value for %s', field)
 	except Exception:
 		logger.exception('Failed to query InfluxDB at %s', url)
+	cache.set('influx_latests_metrics', results, timeout=5)  # Cache for 1 minute
 	return results
 
 

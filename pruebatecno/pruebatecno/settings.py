@@ -188,6 +188,22 @@ STATIC_URL = 'django/static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_FILES_DIRS = [BASE_DIR / "static"]
 
+#URL De Redis
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {"max_connections": 100, "timeout": 5},
+        },
+        "TIMEOUT": 300,  # 5 minutos
+        "KEY_PREFIX": "pruebatecno"
+    }
+}
+
 WHITENOISE_AUTOREFRESH = os.getenv("DJANGO_DEBUG", "False") == "True"
 WHITENOISE_USE_FINDERS = True
 # Default primary key field type
