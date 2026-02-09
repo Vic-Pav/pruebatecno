@@ -112,7 +112,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "django.middleware.CloseRedisConnectionsMiddleware"
     "metrics.middleware.InfluxMetricsMiddleware",
     'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
@@ -200,7 +199,7 @@ CACHES = {
         "LOCATION": REDIS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": {"max_connections": 500, "retry_on_timeout": True, "timeout": 5},
+            "CONNECTION_POOL_KWARGS": {"max_connections": 20, "socket_connect_timeout": 5, "socket_timeout": 5},
         },
         "TIMEOUT": 300,  # 5 minutos
         "KEY_PREFIX": "pruebatecno"

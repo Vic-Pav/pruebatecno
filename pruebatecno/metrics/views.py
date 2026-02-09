@@ -6,42 +6,49 @@ from django.http import HttpRequest
 from django_prometheus import exports
 from django.core.cache import cache
 from prometheus_client import Gauge, CollectorRegistry, generate_latest
-
+from django.core.cache import cache
 from influxdb_client import InfluxDBClient
 
 logger = logging.getLogger(__name__)
 
+url = os.getenv('INFLUX_URL', 'http://influxdb:8086')
+token = os.getenv('INFLUX_TOKEN', 'mytoken')
+org = os.getenv('INFLUX_ORG', 'prueba')
+flux = 'from(bucket:"metrics") |> range(start: -1m) |> filter(fn: (r) => r._measurement == "metricas_pc") |> last()'
 
 def fetch_influx_metrics():
-	cached = cache.get('influx_latests_metrics')
-	if cached:
-		return cached
-	"""Return latest Influx values as a dict: {'Uso_CPU': val, 'Uso_RAM': val}.
+    cache_key = "influx_latest_metrics"
+    data = cache.get(cache_key)
 
-	Avoids relying on shared Gauge objects across processes; callers can
-	render these into a temporary registry per-request.
-	"""
-	url = os.getenv('INFLUX_URL', 'http://influxdb:8086')
-	token = os.getenv('INFLUX_TOKEN', 'mytoken')
-	org = os.getenv('INFLUX_ORG', 'prueba')
-	results = {}
-	try:
-		with InfluxDBClient(url=url, token=token, org=org) as client:
-			query_api = client.query_api()
-			flux = 'from(bucket:"metrics") |> range(start: -1m) |> filter(fn: (r) => r._measurement == "metricas_pc") |> last()'
-			tables = query_api.query(flux)
-			for table in tables:
-				for record in table.records:
-					field = record.get_field()
-					value = record.get_value()
-					try:
-						results[field] = float(value)
-					except Exception:
-						logger.exception('Failed parsing Influx value for %s', field)
-	except Exception:
-		logger.exception('Failed to query InfluxDB at %s', url)
-		cache.set('influx_latests_metrics', results, timeout=15)  
-		return results
+    if data is not None:
+        return data  # ✅ salir rápido
+
+    results = {}
+
+    try:
+        with InfluxDBClient(url=url, token=token, org=org) as client:
+            query_api = client.query_api()
+            tables = query_api.query(flux)
+
+            for table in tables:
+                for record in table.records:
+                    field = record.get_field()
+                    value = record.get_value()
+                    try:
+                        results[field] = float(value)
+                    except Exception:
+                        logger.exception("Parsing error for %s", field)
+
+        # ✅ SOLO cachea si fue exitoso
+        cache.set(cache_key, results, timeout=10)
+
+    except Exception:
+        logger.exception("Influx query failed")
+        return {}  # no cachear errores
+
+    return results
+
+
 
 
 def metrics_with_influx(request: HttpRequest):

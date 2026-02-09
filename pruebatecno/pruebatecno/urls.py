@@ -1,6 +1,5 @@
 from django.contrib import admin
 from django.urls import path, include
-from django_prometheus import exports
 from metrics import views as metrics_views
 from api.views import SystemInfoView
 
