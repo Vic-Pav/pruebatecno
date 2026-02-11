@@ -52,12 +52,16 @@ def metrics_with_influx(request: HttpRequest):
 	influx_vals = fetch_influx_metrics()
 	logger.info('metrics_with_influx fetched Influx values: %s', influx_vals)
 	base_response = exports.ExportToDjangoView(request)
+      
 	# Ensure we correctly read response bytes (handle streaming responses)
+      
 	if getattr(base_response, 'streaming', False):
 		base_content = b"".join(base_response.streaming_content)
 	else:
 		base_content = base_response.content
+            
 	# Create a temporary registry with the Influx-derived gauges
+      
 	temp_reg = CollectorRegistry()
 	if 'Uso_CPU' in influx_vals:
 		g = Gauge('Uso_CPU', 'Uso de CPU', registry=temp_reg)
@@ -68,7 +72,9 @@ def metrics_with_influx(request: HttpRequest):
 	influx_metrics = generate_latest(temp_reg)
 	logger.info('metrics_with_influx: base_content=%d bytes, influx_metrics=%d bytes, keys=%s',
 		len(base_content), len(influx_metrics), list(influx_vals.keys()))
+      
 	# Concatenate bytes
+      
 	combined = base_content + b"\n" + influx_metrics
 	from django.http import HttpResponse
 	return HttpResponse(combined, content_type=base_response['Content-Type'])
