@@ -32,4 +32,5 @@ class SystemInfoView(APIView):
         }
         # Valida y serializa con DRF
         ser = SystemInfoSerializer(payload)
+        ser.is_valid(raise_exception=True)
         return Response(ser.data, status=200)

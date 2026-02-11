@@ -16,35 +16,34 @@ flux = 'from(bucket:"metrics") |> range(start: -1m) |> filter(fn: (r) => r._meas
 
 def fetch_influx_metrics():
     cache_key = "influx_latest_metrics"
-    data = cache.get(cache_key)
+    try:
+        data = cache.get(cache_key)
+    except Exception:
+        logger.warning("Cache backend unavailable, bypassing cache")
+        data = None
 
     if data is not None:
-        return data  
+        return data
 
     results = {}
-
     try:
         with InfluxDBClient(url=url, token=token, org=org) as client:
-            query_api = client.query_api()
-            tables = query_api.query(flux)
-
+            tables = client.query_api().query(flux)
             for table in tables:
                 for record in table.records:
-                    field = record.get_field()
-                    value = record.get_value()
                     try:
-                        results[field] = float(value)
+                        results[record.get_field()] = float(record.get_value())
                     except Exception:
-                        logger.exception("Parsing error for %s", field)
-
-        # ✅ SOLO cachea si fue exitoso
-        cache.set(cache_key, results, timeout=10)
-
+                        logger.exception("Parsing error for %s", record.get_field())
+        try:
+            cache.set(cache_key, results, timeout=10)
+        except Exception:
+            logger.warning("Cache set failed, continuing without cache")
     except Exception:
         logger.exception("Influx query failed")
-        return {}  # no cachear errores
-
+        return {}
     return results
+
 
 def metrics_with_influx(request: HttpRequest):
 	"""Wrapper view: fetch Influx values, render them in a temp registry and

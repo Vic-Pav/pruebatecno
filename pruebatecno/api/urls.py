@@ -1,6 +1,6 @@
 from django.urls import path
-from .views import metrics_influx_only
+from .views import SystemInfoView
 
 urlpatterns = [
-    path('system/', metrics_influx_only),
+    path('system/', SystemInfoView.as_view(), name='system_info'),
 ]
