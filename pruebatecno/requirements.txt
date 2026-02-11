@@ -4,6 +4,7 @@ psycopg2-binary
 django-prometheus
 djangorestframework==3.14.0
 psutil
+django_extensions
 influxdb-client
 PyYAML>=6.0
 whitenoise>=6.0

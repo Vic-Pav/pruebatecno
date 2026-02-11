@@ -1,12 +1,10 @@
 import os
 import logging
-from xmlrpc import client
 
 from django.http import HttpRequest
 from django_prometheus import exports
 from django.core.cache import cache
 from prometheus_client import Gauge, CollectorRegistry, generate_latest
-from django.core.cache import cache
 from influxdb_client import InfluxDBClient
 
 logger = logging.getLogger(__name__)
@@ -21,7 +19,7 @@ def fetch_influx_metrics():
     data = cache.get(cache_key)
 
     if data is not None:
-        return data  # ✅ salir rápido
+        return data  
 
     results = {}
 
@@ -47,9 +45,6 @@ def fetch_influx_metrics():
         return {}  # no cachear errores
 
     return results
-
-
-
 
 def metrics_with_influx(request: HttpRequest):
 	"""Wrapper view: fetch Influx values, render them in a temp registry and

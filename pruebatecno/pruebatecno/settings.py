@@ -82,7 +82,7 @@ CSRF_TRUSTED_ORIGINS = [
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
 
-FORCE_SCRIPT_NAME = "/django"
+#FORCE_SCRIPT_NAME = "/django"
 STATIC_URL = 'django/static/'
 MEDIA_URL = 'django/media/'
 
@@ -100,6 +100,7 @@ INSTALLED_APPS = [
     'metrics',
     "rest_framework",
     'api',
+    "django_extensions",
 ]
 
 MIDDLEWARE = [
