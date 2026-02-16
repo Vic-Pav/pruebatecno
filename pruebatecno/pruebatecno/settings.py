@@ -82,7 +82,7 @@ CSRF_TRUSTED_ORIGINS = [
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
 
-FORCE_SCRIPT_NAME = "/django"
+#FORCE_SCRIPT_NAME = "/django"
 STATIC_URL = 'django/static/'
 MEDIA_URL = 'django/media/'
 
@@ -98,6 +98,9 @@ INSTALLED_APPS = [
     'django_prometheus',
     'tasks',
     'metrics',
+    "rest_framework",
+    'api',
+    "django_extensions",
 ]
 
 MIDDLEWARE = [
@@ -187,6 +190,35 @@ USE_TZ = True
 STATIC_URL = 'django/static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_FILES_DIRS = [BASE_DIR / "static"]
+
+#URL De Redis
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {"max_connections": 20, "socket_connect_timeout": 5, "socket_timeout": 5},
+        },
+        "TIMEOUT": 300,  # 5 minutos
+        "KEY_PREFIX": "pruebatecno"
+    }
+}
+
+REST_FRAMEWORK = {
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+    ],
+
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
 
 WHITENOISE_AUTOREFRESH = os.getenv("DJANGO_DEBUG", "False") == "True"
 WHITENOISE_USE_FINDERS = True

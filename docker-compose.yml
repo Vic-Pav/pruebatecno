@@ -150,12 +150,32 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro  
-
-
+  
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - prueba
+  
+  redis_exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - prueba
+    depends_on:
+      - redis 
+    
+  
 volumes:
   postgres_data:
   influxdb_data:
   grafana_data:
+  redis_data:
 
 networks:
   prueba:
