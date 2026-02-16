@@ -1,0 +1,272 @@
+# Configuración de Ejemplo para SNMP Exporter
+
+# Este archivo muestra la configuración básica del SNMP Exporter
+# para monitorear dispositivos de red comunes
+
+# ============================================================================
+# MÓDULOS DE CONFIGURACIÓN SNMP
+# ============================================================================
+
+# Módulo para Interfaces de Red Estándar (IF-MIB)
+# Compatible con la mayoría de dispositivos de red
+if_mib:
+  walk:
+    # Interface MIB - RFC 2863
+    - 1.3.6.1.2.1.2.2.1.1   # ifIndex
+    - 1.3.6.1.2.1.2.2.1.2   # ifDescr
+    - 1.3.6.1.2.1.2.2.1.3   # ifType
+    - 1.3.6.1.2.1.2.2.1.5   # ifSpeed
+    - 1.3.6.1.2.1.2.2.1.7   # ifAdminStatus
+    - 1.3.6.1.2.1.2.2.1.8   # ifOperStatus
+    - 1.3.6.1.2.1.2.2.1.10  # ifInOctets
+    - 1.3.6.1.2.1.2.2.1.11  # ifInUcastPkts
+    - 1.3.6.1.2.1.2.2.1.12  # ifInNUcastPkts
+    - 1.3.6.1.2.1.2.2.1.13  # ifInDiscards
+    - 1.3.6.1.2.1.2.2.1.14  # ifInErrors
+    - 1.3.6.1.2.1.2.2.1.16  # ifOutOctets
+    - 1.3.6.1.2.1.2.2.1.17  # ifOutUcastPkts
+    - 1.3.6.1.2.1.2.2.1.18  # ifOutNUcastPkts
+    - 1.3.6.1.2.1.2.2.1.19  # ifOutDiscards
+    - 1.3.6.1.2.1.2.2.1.20  # ifOutErrors
+    
+    # Interface MIB Extensions - RFC 2863
+    - 1.3.6.1.2.1.31.1.1.1.1  # ifName
+    - 1.3.6.1.2.1.31.1.1.1.6  # ifHCInOctets (64-bit counters)
+    - 1.3.6.1.2.1.31.1.1.1.10 # ifHCOutOctets
+    - 1.3.6.1.2.1.31.1.1.1.15 # ifHighSpeed
+    - 1.3.6.1.2.1.31.1.1.1.18 # ifAlias
+  
+  metrics:
+    - name: snmp_interface_admin_status
+      oid: 1.3.6.1.2.1.2.2.1.7
+      type: gauge
+      help: Administrative status of the interface (1=up, 2=down, 3=testing)
+      indexes:
+        - labelname: ifIndex
+          type: gauge
+      lookups:
+        - labels:
+            - ifIndex
+          labelname: ifDescr
+          oid: 1.3.6.1.2.1.2.2.1.2
+          type: DisplayString
+    
+    - name: snmp_interface_status
+      oid: 1.3.6.1.2.1.2.2.1.8
+      type: gauge
+      help: Operational status of the interface (1=up, 2=down, 3=testing)
+      indexes:
+        - labelname: ifIndex
+          type: gauge
+      lookups:
+        - labels:
+            - ifIndex
+          labelname: ifDescr
+          oid: 1.3.6.1.2.1.2.2.1.2
+          type: DisplayString
+        - labels:
+            - ifIndex
+          labelname: ifAlias
+          oid: 1.3.6.1.2.1.31.1.1.1.18
+          type: DisplayString
+    
+    - name: snmp_interface_rx_bytes
+      oid: 1.3.6.1.2.1.2.2.1.10
+      type: counter
+      help: Total bytes received on interface
+      indexes:
+        - labelname: ifIndex
+          type: gauge
+      lookups:
+        - labels:
+            - ifIndex
+          labelname: ifDescr
+          oid: 1.3.6.1.2.1.2.2.1.2
+          type: DisplayString
+    
+    - name: snmp_interface_tx_bytes
+      oid: 1.3.6.1.2.1.2.2.1.16
+      type: counter
+      help: Total bytes transmitted on interface
+      indexes:
+        - labelname: ifIndex
+          type: gauge
+      lookups:
+        - labels:
+            - ifIndex
+          labelname: ifDescr
+          oid: 1.3.6.1.2.1.2.2.1.2
+          type: DisplayString
+    
+    - name: snmp_interface_rx_errors
+      oid: 1.3.6.1.2.1.2.2.1.14
+      type: counter
+      help: Total inbound errors on interface
+      indexes:
+        - labelname: ifIndex
+          type: gauge
+      lookups:
+        - labels:
+            - ifIndex
+          labelname: ifDescr
+          oid: 1.3.6.1.2.1.2.2.1.2
+          type: DisplayString
+    
+    - name: snmp_interface_tx_errors
+      oid: 1.3.6.1.2.1.2.2.1.20
+      type: counter
+      help: Total outbound errors on interface
+      indexes:
+        - labelname: ifIndex
+          type: gauge
+      lookups:
+        - labels:
+            - ifIndex
+          labelname: ifDescr
+          oid: 1.3.6.1.2.1.2.2.1.2
+          type: DisplayString
+
+# ============================================================================
+# Módulo para dispositivos Cisco
+# ============================================================================
+cisco_system:
+  walk:
+    # CPU Load
+    - 1.3.6.1.4.1.9.9.109.1.1.1.1.7   # cpmCPUTotal5minRev
+    - 1.3.6.1.4.1.9.9.109.1.1.1.1.8   # cpmCPUTotal1minRev
+    
+    # Memory
+    - 1.3.6.1.4.1.9.9.48.1.1.1.5      # ciscoMemoryPoolUsed
+    - 1.3.6.1.4.1.9.9.48.1.1.1.6      # ciscoMemoryPoolFree
+    - 1.3.6.1.4.1.9.9.48.1.1.1.7      # ciscoMemoryPoolLargestFree
+    
+    # Temperature
+    - 1.3.6.1.4.1.9.9.13.1.3.1.3      # ciscoEnvMonTemperatureStatusValue
+  
+  metrics:
+    - name: snmp_cisco_cpu_usage
+      oid: 1.3.6.1.4.1.9.9.109.1.1.1.1.7
+      type: gauge
+      help: Cisco CPU usage percentage (5 minute average)
+    
+    - name: snmp_cisco_memory_used
+      oid: 1.3.6.1.4.1.9.9.48.1.1.1.5
+      type: gauge
+      help: Cisco memory pool used in bytes
+      indexes:
+        - labelname: ciscoMemoryPoolType
+          type: gauge
+    
+    - name: snmp_cisco_memory_free
+      oid: 1.3.6.1.4.1.9.9.48.1.1.1.6
+      type: gauge
+      help: Cisco memory pool free in bytes
+      indexes:
+        - labelname: ciscoMemoryPoolType
+          type: gauge
+    
+    - name: snmp_cisco_temperature
+      oid: 1.3.6.1.4.1.9.9.13.1.3.1.3
+      type: gauge
+      help: Cisco device temperature in Celsius
+      indexes:
+        - labelname: ciscoEnvMonTemperatureStatusIndex
+          type: gauge
+
+# ============================================================================
+# Módulo genérico para información del sistema
+# ============================================================================
+generic:
+  walk:
+    # System MIB
+    - 1.3.6.1.2.1.1.1     # sysDescr
+    - 1.3.6.1.2.1.1.3     # sysUpTime
+    - 1.3.6.1.2.1.1.4     # sysContact
+    - 1.3.6.1.2.1.1.5     # sysName
+    - 1.3.6.1.2.1.1.6     # sysLocation
+  
+  metrics:
+    - name: snmp_sysUpTime
+      oid: 1.3.6.1.2.1.1.3.0
+      type: gauge
+      help: System uptime in hundredths of a second
+
+# ============================================================================
+# Módulo para switches HP/Aruba
+# ============================================================================
+hp_switch:
+  walk:
+    # Standard IF-MIB
+    - 1.3.6.1.2.1.2.2
+    
+    # HP Specific
+    - 1.3.6.1.4.1.11.2.14.11.1.2.6.1  # hpicfSensorTable
+  
+  metrics:
+    - name: snmp_hp_sensor_value
+      oid: 1.3.6.1.4.1.11.2.14.11.1.2.6.1.7
+      type: gauge
+      help: HP sensor reading
+      indexes:
+        - labelname: hpicfSensorIndex
+          type: gauge
+
+# ============================================================================
+# Módulo para Linux con Net-SNMP
+# ============================================================================
+linux_server:
+  walk:
+    # UCD-SNMP-MIB (Net-SNMP)
+    - 1.3.6.1.4.1.2021.4    # Memory
+    - 1.3.6.1.4.1.2021.10   # Load Average
+    - 1.3.6.1.4.1.2021.11   # CPU
+    - 1.3.6.1.4.1.2021.9    # Disk
+  
+  metrics:
+    - name: snmp_linux_mem_total
+      oid: 1.3.6.1.4.1.2021.4.5.0
+      type: gauge
+      help: Total memory in kB
+    
+    - name: snmp_linux_mem_available
+      oid: 1.3.6.1.4.1.2021.4.6.0
+      type: gauge
+      help: Available memory in kB
+    
+    - name: snmp_linux_load_1min
+      oid: 1.3.6.1.4.1.2021.10.1.3.1
+      type: gauge
+      help: Load average over 1 minute
+    
+    - name: snmp_linux_load_5min
+      oid: 1.3.6.1.4.1.2021.10.1.3.2
+      type: gauge
+      help: Load average over 5 minutes
+    
+    - name: snmp_linux_cpu_idle
+      oid: 1.3.6.1.4.1.2021.11.11.0
+      type: gauge
+      help: CPU idle percentage
+
+# ============================================================================
+# NOTAS DE USO
+# ============================================================================
+#
+# 1. Generar configuración con generator tool:
+#    docker run --rm -v "${PWD}:/opt" prom/snmp-exporter generate
+#
+# 2. Validar sintaxis:
+#    docker run --rm -v "${PWD}:/config" prom/snmp-exporter --config.file=/config/snmp.yml --dry-run
+#
+# 3. Test de scrape:
+#    curl 'http://localhost:9116/snmp?target=192.168.1.1&module=if_mib'
+#
+# 4. Agregar nuevos módulos:
+#    - Crear sección con walk y metrics
+#    - Reiniciar SNMP exporter
+#    - Actualizar prometheus.yml con el nuevo módulo
+#
+# 5. Debugging:
+#    docker logs snmp_exporter -f
+#
+# ============================================================================

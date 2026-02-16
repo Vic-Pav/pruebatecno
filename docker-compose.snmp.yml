@@ -1,0 +1,227 @@
+# Docker Compose - Extensión para SNMP Monitoring
+# 
+# Este archivo muestra cómo agregar el SNMP Exporter al stack existente
+# Merge este contenido con docker-compose.yml existente o use docker-compose.override.yml
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # SNMP Exporter - Recolector de métricas SNMP
+  # ============================================================================
+  snmp_exporter:
+    image: prom/snmp-exporter:v0.25.0
+    container_name: snmp_exporter
+    hostname: snmp-exporter
+    restart: unless-stopped
+    
+    # Puertos
+    ports:
+      - "9116:9116"  # Puerto del exporter (accesible desde host para debugging)
+    
+    # Exponer solo dentro de la red Docker (sin publicar en host)
+    # Descomenta esta sección y comenta 'ports' si prefieres no exponer al host
+    # expose:
+    #   - "9116"
+    
+    # Volúmenes de configuración
+    volumes:
+      - ./snmp-exporter/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
+      - ./snmp-exporter/targets.json:/etc/snmp_exporter/targets.json:ro
+    
+    # Variables de entorno
+    environment:
+      - TZ=UTC
+      - LOG_LEVEL=info
+    
+    # Comando personalizado (opcional)
+    command:
+      - "--config.file=/etc/snmp_exporter/snmp.yml"
+      - "--log.level=info"
+    
+    # Red Docker
+    networks:
+      - prueba
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9116/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Recursos (opcional - ajustar según necesidad)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # ============================================================================
+  # Actualización del servicio Prometheus para incluir SNMP
+  # ============================================================================
+  prometheus:
+    # Toda la configuración existente se mantiene
+    # Solo se agrega la dependencia del SNMP exporter
+    depends_on:
+      snmp_exporter:
+        condition: service_healthy
+    
+    # El volumen de prometheus.yml debe incluir la configuración SNMP
+    # Ver archivo: prometheus/prometheus-with-snmp.yml
+
+  # ============================================================================
+  # Worker de Django para tareas SNMP (opcional - requiere Celery)
+  # ============================================================================
+  celery_worker:
+    build: ./pruebatecno
+    working_dir: /pruebatecno
+    command: celery -A pruebatecno worker --loglevel=info
+    environment:
+      DATABASE_URL: postgres://admin:admin@postgres:5432/pruebadb
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: mytoken
+      INFLUX_ORG: prueba
+      INFLUX_BUCKET: metrics
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "False"
+    user: "1000:1000"
+    volumes:
+      - ./pruebatecno:/pruebatecno
+      - ./snmp-exporter:/etc/snmp_exporter:rw  # Escritura para regenerar targets.json
+    networks:
+      - prueba
+    depends_on:
+      - redis
+      - postgres
+      - snmp_exporter
+
+  # ============================================================================
+  # Celery Beat para tareas programadas SNMP (opcional)
+  # ============================================================================
+  celery_beat:
+    build: ./pruebatecno
+    working_dir: /pruebatecno
+    command: celery -A pruebatecno beat --loglevel=info
+    environment:
+      DATABASE_URL: postgres://admin:admin@postgres:5432/pruebadb
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "False"
+    user: "1000:1000"
+    volumes:
+      - ./pruebatecno:/pruebatecno
+    networks:
+      - prueba
+    depends_on:
+      - redis
+      - postgres
+
+# ============================================================================
+# INSTRUCCIONES DE USO
+# ============================================================================
+#
+# Opción 1: Merge con docker-compose.yml existente
+# --------------------------------------------------
+# 1. Copiar el servicio 'snmp_exporter' al docker-compose.yml principal
+# 2. Agregar 'snmp_exporter' a las dependencias de 'prometheus'
+# 3. Crear directorio: mkdir -p snmp-exporter
+# 4. Copiar archivos de configuración al directorio snmp-exporter/
+#
+# Opción 2: Usar como docker-compose.override.yml
+# ------------------------------------------------
+# 1. Renombrar este archivo a 'docker-compose.override.yml'
+# 2. Docker Compose lo cargará automáticamente junto con docker-compose.yml
+# 3. Crear directorio y configuraciones como en Opción 1
+#
+# Opción 3: Usar con multiple compose files
+# ------------------------------------------
+# docker-compose -f docker-compose.yml -f docker-compose.snmp.yml up -d
+#
+# ============================================================================
+# ESTRUCTURA DE DIRECTORIOS REQUERIDA
+# ============================================================================
+#
+# proyecto/
+# ├── docker-compose.yml
+# ├── docker-compose.snmp.yml  (este archivo)
+# ├── snmp-exporter/
+# │   ├── snmp.yml             (configuración de módulos SNMP)
+# │   └── targets.json         (lista de dispositivos a monitorear)
+# ├── prometheus/
+# │   ├── prometheus.yml       (actualizar con job snmp_devices)
+# │   └── snmp_alerts.yml      (reglas de alertas SNMP)
+# └── pruebatecno/
+#     └── metrics/
+#         ├── models.py        (agregar modelos SNMP)
+#         └── tasks.py         (tareas Celery para SNMP)
+#
+# ============================================================================
+# COMANDOS ÚTILES
+# ============================================================================
+#
+# # Iniciar solo el stack SNMP
+# docker-compose up -d snmp_exporter
+#
+# # Ver logs del SNMP exporter
+# docker-compose logs -f snmp_exporter
+#
+# # Verificar salud del servicio
+# docker-compose ps snmp_exporter
+#
+# # Test manual de scrape
+# curl 'http://localhost:9116/snmp?target=192.168.1.1&module=if_mib'
+#
+# # Reiniciar SNMP exporter
+# docker-compose restart snmp_exporter
+#
+# # Ver métricas del exporter mismo
+# curl http://localhost:9116/metrics
+#
+# # Verificar configuración sin iniciar
+# docker-compose config
+#
+# # Ejecutar solo servicios SNMP (exporter + prometheus)
+# docker-compose up -d snmp_exporter prometheus
+#
+# ============================================================================
+# NETWORKING
+# ============================================================================
+#
+# El SNMP exporter debe poder alcanzar los dispositivos de red:
+# - Si los dispositivos están en la misma red Docker: usar nombres de servicio
+# - Si los dispositivos están fuera de Docker: usar network_mode: host
+#   o configurar routing apropiado
+#
+# Para usar network_mode: host (descomenta si es necesario):
+#
+# snmp_exporter:
+#   network_mode: host
+#   # Eliminar la sección 'networks' cuando uses network_mode: host
+#   # Los puertos se bindean directamente al host
+#
+# ============================================================================
+# SECURITY CONSIDERATIONS
+# ============================================================================
+#
+# 1. CREDENCIALES SNMP:
+#    - Usar variables de entorno para community strings
+#    - Nunca hacer commit de credenciales en git
+#    - Usar Docker secrets en producción:
+#
+#    secrets:
+#      snmp_community:
+#        external: true
+#
+# 2. NETWORK ISOLATION:
+#    - Considerar red separada para management
+#    - Usar firewall para limitar acceso a puerto 9116
+#
+# 3. SNMP VERSION:
+#    - Preferir SNMPv3 con autenticación
+#    - Evitar SNMPv1 (inseguro)
+#
+# ============================================================================

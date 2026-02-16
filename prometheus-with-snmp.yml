@@ -1,0 +1,300 @@
+# Prometheus Configuration - Con Integración SNMP
+#
+# Este archivo extiende la configuración existente de Prometheus
+# agregando scraping de métricas SNMP
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'pruebatecno-monitoring'
+    environment: 'production'
+
+# ============================================================================
+# REGLAS DE ALERTAS
+# ============================================================================
+rule_files:
+  - "/etc/prometheus/rules/alerts.yml"      # Alertas existentes
+  - "/etc/prometheus/rules/snmp_alerts.yml" # Nuevas alertas SNMP
+
+# ============================================================================
+# CONFIGURACIÓN DE SCRAPING
+# ============================================================================
+scrape_configs:
+  
+  # --------------------------------------------------------------------------
+  # JOB EXISTENTE: Django Application
+  # --------------------------------------------------------------------------
+  - job_name: "django"
+    metrics_path: /metrics/influx/
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["web:8000"]
+        labels:
+          service: "django-web"
+          component: "application"
+
+  # --------------------------------------------------------------------------
+  # JOB EXISTENTE: System Metrics Exporter
+  # --------------------------------------------------------------------------
+  - job_name: "system_metrics"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["system_metrics_exporter:9153"]
+        labels:
+          service: "system-exporter"
+          component: "monitoring"
+
+  # --------------------------------------------------------------------------
+  # JOB EXISTENTE: Redis Exporter
+  # --------------------------------------------------------------------------
+  - job_name: "redis"
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["redis_exporter:9121"]
+        labels:
+          service: "redis"
+          component: "database"
+
+  # --------------------------------------------------------------------------
+  # NUEVO JOB: SNMP Devices - Interfaces y Métricas Básicas
+  # --------------------------------------------------------------------------
+  - job_name: 'snmp_devices'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    
+    # Lista de dispositivos a monitorear
+    static_configs:
+      - targets:
+        # Routers
+        - 192.168.1.1      # router-core-01
+        - 192.168.1.2      # router-core-02
+        
+        # Switches
+        - 192.168.1.10     # switch-access-01
+        - 192.168.1.11     # switch-access-02
+        - 192.168.1.20     # switch-dist-01
+        
+        # Firewalls
+        - 192.168.1.254    # firewall-edge-01
+        
+        labels:
+          environment: "production"
+          site: "datacenter-1"
+    
+    # Configuración del módulo SNMP
+    params:
+      module: [if_mib]  # Usar módulo if_mib por defecto
+      auth: [public_v2] # Autenticación (definida en snmp.yml)
+    
+    # Path al SNMP exporter
+    metrics_path: /snmp
+    
+    # Relabel configs para SNMP exporter pattern
+    relabel_configs:
+      # Pasar el target como parámetro
+      - source_labels: [__address__]
+        target_label: __param_target
+      
+      # Actualizar instance label con el target
+      - source_labels: [__param_target]
+        target_label: instance
+      
+      # Reemplazar __address__ con el SNMP exporter
+      - target_label: __address__
+        replacement: snmp_exporter:9116
+
+  # --------------------------------------------------------------------------
+  # NUEVO JOB: SNMP Cisco Devices - Métricas Específicas Cisco
+  # --------------------------------------------------------------------------
+  - job_name: 'snmp_cisco'
+    scrape_interval: 60s
+    scrape_timeout: 15s
+    
+    static_configs:
+      - targets:
+        - 192.168.1.1      # router-core-01
+        - 192.168.1.2      # router-core-02
+        
+        labels:
+          vendor: "cisco"
+          device_type: "router"
+          site: "datacenter-1"
+    
+    params:
+      module: [cisco_system]  # Usar módulo específico de Cisco
+    
+    metrics_path: /snmp
+    
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp_exporter:9116
+
+  # --------------------------------------------------------------------------
+  # NUEVO JOB: SNMP HP/Aruba Switches
+  # --------------------------------------------------------------------------
+  - job_name: 'snmp_hp_switches'
+    scrape_interval: 45s
+    scrape_timeout: 10s
+    
+    static_configs:
+      - targets:
+        - 192.168.1.10     # switch-access-01
+        - 192.168.1.11     # switch-access-02
+        
+        labels:
+          vendor: "hp"
+          device_type: "switch"
+          site: "datacenter-1"
+    
+    params:
+      module: [if_mib]  # HP switches usan IF-MIB estándar
+    
+    metrics_path: /snmp
+    
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp_exporter:9116
+
+  # --------------------------------------------------------------------------
+  # NUEVO JOB: SNMP Exporter Self-Monitoring
+  # --------------------------------------------------------------------------
+  - job_name: 'snmp_exporter'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['snmp_exporter:9116']
+        labels:
+          service: "snmp-exporter"
+          component: "monitoring"
+
+  # --------------------------------------------------------------------------
+  # NUEVO JOB: SNMP via Service Discovery (Opcional/Avanzado)
+  # --------------------------------------------------------------------------
+  # Descomenta si usas file-based service discovery
+  #
+  # - job_name: 'snmp_devices_dynamic'
+  #   scrape_interval: 30s
+  #   
+  #   # Leer targets desde archivo JSON
+  #   file_sd_configs:
+  #     - files:
+  #       - '/etc/prometheus/targets/snmp_devices.json'
+  #       refresh_interval: 5m
+  #   
+  #   params:
+  #     module: [if_mib]
+  #   
+  #   metrics_path: /snmp
+  #   
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: __param_target
+  #     - source_labels: [__param_target]
+  #       target_label: instance
+  #     - target_label: __address__
+  #       replacement: snmp_exporter:9116
+
+# ============================================================================
+# ALERTMANAGER CONFIGURATION
+# ============================================================================
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+      timeout: 10s
+
+# ============================================================================
+# REMOTE WRITE (Opcional - para InfluxDB)
+# ============================================================================
+# Descomenta si quieres enviar métricas SNMP a InfluxDB
+#
+# remote_write:
+#   - url: "http://influxdb:8086/api/v1/prom/write?db=prometheus"
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 5
+#       max_samples_per_send: 1000
+
+# ============================================================================
+# STORAGE CONFIGURATION
+# ============================================================================
+# storage:
+#   tsdb:
+#     retention.time: 30d
+#     retention.size: 10GB
+
+# ============================================================================
+# NOTAS DE CONFIGURACIÓN
+# ============================================================================
+#
+# 1. MÚLTIPLES MÓDULOS POR DISPOSITIVO:
+#    Si necesitas aplicar múltiples módulos SNMP al mismo dispositivo,
+#    crea jobs separados con diferentes params:
+#
+#    - job_name: 'device-interfaces'
+#      params: {module: [if_mib]}
+#      static_configs: [{targets: [192.168.1.1]}]
+#    
+#    - job_name: 'device-cisco'
+#      params: {module: [cisco_system]}
+#      static_configs: [{targets: [192.168.1.1]}]
+#
+# 2. SCRAPE INTERVALS:
+#    - Interfaces: 30s (red cambia frecuentemente)
+#    - CPU/Memory: 60s (menos crítico)
+#    - Temperature: 120s (cambia lentamente)
+#
+# 3. TIMEOUT:
+#    - Ajustar según red y número de OIDs
+#    - Dispositivos lentos: aumentar a 20-30s
+#    - Red rápida: 5-10s suficiente
+#
+# 4. LABELS:
+#    Usar labels para organizar y filtrar:
+#    - vendor: cisco, hp, juniper, etc.
+#    - device_type: router, switch, firewall
+#    - site: datacenter-1, office-ny, etc.
+#    - environment: production, staging, dev
+#    - criticality: critical, high, medium, low
+#
+# 5. RELABEL CONFIGS AVANZADOS:
+#    
+#    # Agregar hostname desde label existente
+#    - source_labels: [__address__]
+#      target_label: hostname
+#      regex: '(\d+\.\d+\.\d+\.\d+)'
+#      replacement: 'device-$1'
+#    
+#    # Filtrar métricas por expresión regular
+#    - source_labels: [__name__]
+#      regex: 'snmp_(interface|cisco)_.*'
+#      action: keep
+#    
+#    # Renombrar labels
+#    - source_labels: [ifDescr]
+#      target_label: interface
+#      regex: '(.*)'
+#      replacement: '$1'
+#
+# 6. SEGURIDAD:
+#    - No exponer Prometheus directamente a internet
+#    - Usar autenticación (OAuth, basic auth)
+#    - Limitar acceso con nginx reverse proxy
+#    - Usar HTTPS en producción
+#
+# 7. RECARGAR CONFIGURACIÓN:
+#    curl -X POST http://localhost:9090/prometheus/-/reload
+#    (requiere --web.enable-lifecycle en comando de inicio)
+#
+# 8. VALIDAR CONFIGURACIÓN:
+#    docker exec prometheus promtool check config /etc/prometheus/prometheus.yml
+#
+# ============================================================================
