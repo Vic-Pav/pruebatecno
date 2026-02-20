@@ -83,8 +83,8 @@ USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
 
 #FORCE_SCRIPT_NAME = "/django"
-STATIC_URL = 'django/static/'
-MEDIA_URL = 'django/media/'
+STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
 
 # Application definition
 

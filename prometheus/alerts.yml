@@ -22,3 +22,13 @@ groups:
     for: 70s
     labels:
       severity: info
+- name: alerts
+  rules:
+  - alert: Alerta CPU
+    expr: cpu < 60.0
+    for: 1m
+    labels:
+      severity: info
+      managed_by: django-admin
+    annotations:
+      summary: Alert Alerta CPU triggered
