@@ -2,11 +2,12 @@ Django == 5.2.10
 gunicorn
 psycopg2-binary
 django-prometheus
-djangorestframework==3.14.0
+djangorestframework == 3.14.0
 psutil
 django_extensions
 influxdb-client
 PyYAML>=6.0
+requests>=2.32.3
 whitenoise>=6.0
 prometheus-client>=0.17.1
 django-redis==5.4.0
