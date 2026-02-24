@@ -24,11 +24,68 @@ groups:
       severity: info
 - name: alerts
   rules:
-  - alert: Alerta CPU
-    expr: cpu < 60.0
+  - alert: ServiceDown
+    expr: up == 0
+    for: 10s
+    labels:
+      severity: critical
+      team: platform
+      managed_by: api
+    annotations:
+      summary: Service {{ $labels.job }} is down
+      description: The service has been down for more than 2 minutes
+  - alert: HighCPUUsage
+    expr: avg_over_time(Uso_CPU[5m]) > 80
+    for: 20s
+    labels:
+      severity: warning
+      component: cpu
+      environment: production
+      managed_by: api
+    annotations:
+      summary: High CPU usage detected
+      description: CPU usage has been above 80% for 5 minutes
+      runbook_url: https://wiki.example.com/runbooks/high-cpu
+  - alert: HighCPU
+    expr: avg_over_time(Uso_CPU[5m]) > 80
+    for: 3s
+    labels:
+      severity: critical
+      component: cpu
+      managed_by: api
+    annotations:
+      summary: CPU usage above 80%
+  - alert: Critical CPU
+    expr: avg_over_time(Uso_CPU[5m]) > 80
+    for: 2s
+    labels:
+      severity: critical
+      component: cpu
+      managed_by: api
+    annotations:
+      summary: CPU usage above 80%
+  - alert: Critical RAM
+    expr: avg_over_time(Uso_RAM[5m]) < 80
+    for: 2m
+    labels:
+      severity: critical
+      component: ram
+      managed_by: api
+    annotations:
+      summary: RAM usage below 80%
+  - alert: Test RAM
+    expr: avg_over_time(Uso_RAM[5m]) < 80
     for: 1m
     labels:
-      severity: info
-      managed_by: django-admin
+      severity: critical
+      component: cpu
+      managed_by: api
     annotations:
-      summary: Alert Alerta CPU triggered
+      summary: CPU usage above 80%
+  - alert: TestAlert
+    expr: up == 0
+    labels:
+      severity: info
+      managed_by: api
+    annotations:
+      summary: Test

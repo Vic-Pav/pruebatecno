@@ -18,6 +18,7 @@ services:
       PROMETHEUS_BASE_URL: http://prometheus:9090
       PROMTOOL_PATH: promtool
       PROM_ENABLE_RELOAD: "true"
+      ENABLE_PROMTOOL_VALIDATION: "false"
       NO_FILE_LOG: "1"
     user: "1000:1000"
     volumes:

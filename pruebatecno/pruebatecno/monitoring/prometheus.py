@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 ALERTS_PATH = os.getenv("PROM_ALERTS_PATH") or os.getenv("PROM_RULES_PATH", "/prometheus/alerts.yml")
 PROM_BASE_URL = os.getenv("PROMETHEUS_BASE_URL", "http://prometheus:9090")
 PROM_ENABLE_RELOAD = os.getenv("PROM_ENABLE_RELOAD", "true").lower() == "true"
-PROMTOOL_PATH = os.getenv("PROMTOOL_PATH", "promtool")
+PROMTOOL_PATH = ("PROMTOOL_PATH", "promtool") 
+ENABLE_PROOMTOOL_VALIDATION = os.getenv("ENABLE_PROMTOOL_VALIDATION", "false").lower()
 DEFAULT_GROUP_NAME = "alerts"
 
 # ============================================================================
@@ -285,9 +286,9 @@ def create_rule(alert_name: str, expr: str, duration: str = "",
         return False, f"Failed to save: {e}", None
     
     # Validar
-    ok, output = validate_rules()
-    if not ok:
-        return False, f"Validation failed: {output}", None
+    #ok, output = validate_rules()
+    #if not ok:
+    #    return False, f"Validation failed: {output}", None
     
     # Recargar
     reload_prometheus()
@@ -334,9 +335,9 @@ def update_rule(alert_name: str, expr: str, duration: str = "",
     except Exception as e:
         return False, f"Failed to save: {e}", None
     
-    ok, output = validate_rules()
-    if not ok:
-        return False, f"Validation failed: {output}", None
+    #ok, output = validate_rules()
+    #if not ok:
+    #    return False, f"Validation failed: {output}", None
     
     reload_prometheus()
     
@@ -388,9 +389,9 @@ def patch_rule(alert_name: str, updates: Dict) -> Tuple[bool, str, Optional[Dict
     except Exception as e:
         return False, f"Failed to save: {e}", None
     
-    ok, output = validate_rules()
-    if not ok:
-        return False, f"Validation failed: {output}", None
+    #ok, output = validate_rules()
+    #if not ok:
+    #    return False, f"Validation failed: {output}", None
     
     reload_prometheus()
     
@@ -418,9 +419,9 @@ def delete_rule(alert_name: str) -> Tuple[bool, str, Optional[Dict]]:
     except Exception as e:
         return False, f"Failed to save: {e}", None
     
-    ok, output = validate_rules()
-    if not ok:
-        return False, f"Validation failed: {output}", None
+    #ok, output = validate_rules()
+    #if not ok:
+    #    return False, f"Validation failed: {output}", None
     
     reload_prometheus()
     

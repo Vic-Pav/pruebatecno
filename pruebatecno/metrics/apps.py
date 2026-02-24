@@ -7,10 +7,10 @@ class MetricsConfig(AppConfig):
     def ready(self):
         from django.db.models.signals import post_save, post_delete
         from metrics.models import Alert, AlertCondition
+        
+        # ← Importar desde el módulo unificado
         from pruebatecno.monitoring.prometheus import generate_alert_rules
 
-        # Run generate_alert_rules after the DB transaction is committed to
-        # ensure related inlines (e.g. AlertLogic) are created first.
         from django.db import transaction
 
         def schedule_generate_alert_rules(**kw):
