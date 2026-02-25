@@ -1,14 +1,28 @@
-Django == 5.2.10
+#Django and related packages
+Django == 5.1.6
+djangorestframework == 3.14.0
+django_extensions
 gunicorn
 psycopg2-binary
-django-prometheus
-djangorestframework == 3.14.0
 psutil
-django_extensions
+
+#Prometheus Stack
+django-prometheus
+prometheus-client>=0.17.1
+
+
 influxdb-client
 PyYAML>=6.0
 requests>=2.32.3
 whitenoise>=6.0
-prometheus-client>=0.17.1
+
+#Redis Stack
 django-redis==5.4.0
-redis==4.5.1
+redis>=4.6.0,<6
+
+#Celery Stack
+celery==5.4.0
+celery[redis]==5.4.0
+django-celery-beat==2.7.0
+django-celery-results==2.5.1
+flower==2.0.1

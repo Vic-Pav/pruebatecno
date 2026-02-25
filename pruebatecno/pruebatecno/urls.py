@@ -6,7 +6,6 @@ from metrics import views as metrics_views
 urlpatterns = [
     path("admin/", admin.site.urls),
     path('api/', include('api.urls')),
-    path("", include("tasks.urls")),
     path("metrics/", metrics_views.metrics_with_influx),
     path("metrics/influx/", metrics_views.metrics_influx_only),
 ]
