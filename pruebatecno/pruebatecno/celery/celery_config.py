@@ -1,18 +1,19 @@
 import os
-from pruebatecno.pruebatecno.celery.celery_config import Celery
+from celery import Celery
 from celery.schedules import crontab
 
-#set default de Django Settings para Celery
+# set default Django settings module for Celery
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pruebatecno.settings')
 
-app = Celery('pruebatecno')
+# renamed to celery_app and exported for consistent imports
+celery_app = Celery('pruebatecno')
 
-#configuraciones provenientes de settings.py con prefijo CELERY_
-app.config_from_object('django.conf:settings', namespace='CELERY')
+# load config from Django settings (CELERY_*)
+celery_app.config_from_object('django.conf:settings', namespace='CELERY')
 
-#descubrir tareas en las aplicaciones de Django
-app.autodiscover_tasks()
+# autodiscover tasks from installed apps
+celery_app.autodiscover_tasks()
 
-@app.task(bind=True, ingnore_result=True)
+@celery_app.task(bind=True, ignore_result=True)
 def debug_task(self):
     print(f'Request: {self.request!r}')

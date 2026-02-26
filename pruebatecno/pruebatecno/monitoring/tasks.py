@@ -15,10 +15,10 @@ def comprobar_sincronizacion(self, alert_uuid=None):
     "ARGS: alert_uuid (str): UUID de la alerta a sincronizar. Si es None, se sincronizan todas las alertas."
 
     try:
-        from monitoring.prometheus import generate_alert_rules_from_db
+        from monitoring.prometheus import generate_alert_rules
 
         logger.info(f"Inicio de tarea: comprobar_sincronizacion (alert_uuid={alert_uuid})")
-        count = generate_alert_rules_from_db()
+        count = generate_alert_rules()
         logger.info(f"Sincronización exitosa. Total de reglas sincronizadas: {count}")
 
         return {
@@ -45,7 +45,7 @@ def validar_sincronizacion():
     
     for alert in Alert.objects.filter(enabled=True):
         #validar existencia de expresion PromQL
-        if not alert.promql or not alert.expr.strip():
+        if not hasattr(alert, 'expr') or not alert.expr.strip() or not alert.expr.strip():
             errors.append(f"Alerta ({alert.name}) no tiene expresión PromQL válida.")
             
         #Validación por nombre

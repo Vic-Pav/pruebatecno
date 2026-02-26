@@ -6,13 +6,13 @@ DEFAULT_BEAT_SCHEDULE = {
 
     "comprobar sincronizacion de prometheus cada 5 minutos": {
 
-        "task": "pruebatecno.tasks.comprobar_sincronizacion",
+        "task": "monitoring.tasks.comprobar_sincronizacion",
         "schedule": crontab(minute='*/5'), #comprobación cada 5 minutos
         "options": {"queue": "low_priority"},
     },
     "validar integridad de las alertas cada dia": {
 
-        "task": "pruebatecno.tasks.validar_integridad_alertas",
+        "task": "monitoring.tasks.validar_integridad_alertas",
         "schedule": crontab(hour=0, minute=0), #comprobación diaria a medianoche
         "options": {"queue": "low_priority"},
     },
@@ -53,7 +53,7 @@ def populate_beat_schedule():
     PeriodicTask.objects.get_or_create(
         name="comprobar sincronizacion de prometheus cada 5 minutos",
         defaults={
-            "task": "pruebatecno.tasks.comprobar_sincronizacion",
+            "task": "monitoring.tasks.comprobar_sincronizacion",
             "interval": schedule_5min,
             "queue": "low_priority",
             "enabled": True,
@@ -70,7 +70,7 @@ def populate_beat_schedule():
     PeriodicTask.objects.get_or_create(
         name="validar integridad de las alertas cada dia",
         defaults={
-            "task": "pruebatecno.tasks.validar_integridad_alertas",
+            "task": "monitoring.tasks.validar_integridad_alertas",
             "crontab": schedule_daily_midnight,
             "queue": "low_priority",
             "enabled": True,
