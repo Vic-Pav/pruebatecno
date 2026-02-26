@@ -11,9 +11,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
-from pathlib import Path
 import logging
+from pathlib import Path
+from kombu import Queue, Exchange
 from logging.handlers import RotatingFileHandler
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -82,9 +84,13 @@ CSRF_TRUSTED_ORIGINS = [
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
 
-#FORCE_SCRIPT_NAME = "/django"
-STATIC_URL = 'django/static/'
-MEDIA_URL = 'django/media/'
+FORCE_SCRIPT_NAME = "/django"
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+MEDIA_URL = '/media/'
 
 # Application definition
 
@@ -95,12 +101,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_prometheus',
-    'tasks',
-    'metrics',
-    "rest_framework",
-    'api',
     "django_extensions",
+    "rest_framework",
+    'django_prometheus',
+
+    #Celery Stack
+    'django_celery_beat',
+    'django_celery_results',
+
+    #apps propias
+    'metrics',
+    'api',
+    #"monitoring",
 ]
 
 MIDDLEWARE = [
@@ -190,6 +202,66 @@ USE_TZ = True
 STATIC_URL = 'django/static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_FILES_DIRS = [BASE_DIR / "static"]
+
+# ================================= Configuración de Celery ================================= 
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "django-db")
+
+#Serialización de tareas con JSON para compatibilidad y seguridad
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TIMEZONE = 'America/Santiago' #Ajuste de zona horaria para tareas con horas definidas
+ENABLE_UTC = True
+
+#Configuración de tiempo y warnings
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 60 * 60  * 24 #Límite de 24 horas para tareas
+CELERY_TASK_SOFT_TIME_LIMIT = 60 * 60 * 23 #Límite de 23 horas de warning antes de forzar la terminación
+
+#Retry en caso de fallo
+CELERY_TASK_ACK_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1 
+CELERY_REJECT_ON_WORKER_LOST = True
+
+# Retry por defecto
+CELERY_TASK_AUTORETRY_FOR = (Exception,)
+CELERY_TASK_MAX_RETRIES = 5
+CELERY_TASK_DEFAULT_RETRY_DELAY = 60  # Retraso de 1 minuto entre reintentos
+
+#Rutas de tareas en cola
+CELERY_TASK_ROUTES = {
+    #Tareas de alta prioridad
+    "pruebatecno.tasks.comprobar_sincronizacion": {
+    "queue": "high_priority",
+    "routing_key": "high_priority"
+    },
+
+    "pruebatecno.tasks.validar_integridad_alertas": {
+    "queue": "high_priority",
+    "routing_key": "high_priority"
+    },
+
+    #Tareas de prioridad baja
+    "pruebatecno.tasks.recargar_reglas_prometheus": {
+    "queue": "low_priority",
+    "routing_key": "low_priority"
+    },
+}
+
+# Resultados de tareas
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_CACHE_BACKEND = 'default'
+CELERY_RESULT_EXTENDED = True
+CELERY_RESULT_EXPIRES = 3600 * 7 * 24  # Expiración de resultados en 24 horas
+
+# Logs de Celery
+CELERY_WORKER_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(processName)s] %(message)s'
+CELERY_WORKER_TASK_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(processName)s] Task %(task_name)s[%(task_id)s]: %(message)s'
+
+# BEAT Guardado de tareas periódicas en la base de datos para persistencia y administración desde Django Admin
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_BEAT_SYNC_EVERY = 60 # Sincronización cada minuto para detectar cambios en tareas periódicas
 
 #URL De Redis
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")

@@ -14,7 +14,11 @@ services:
       INFLUX_ORG: prueba
       INFLUX_BUCKET: metrics
       DEBUG: "False"
-      PROM_RULES_PATH: /prometheus/alerts.yml
+      PROM_ALERTS_PATH: /prometheus/alerts.yml
+      PROMETHEUS_BASE_URL: http://prometheus:9090
+      PROMTOOL_PATH: promtool
+      PROM_ENABLE_RELOAD: "true"
+      ENABLE_PROMTOOL_VALIDATION: "false"
       NO_FILE_LOG: "1"
     user: "1000:1000"
     volumes:
@@ -169,6 +173,67 @@ services:
       - prueba
     depends_on:
       - redis 
+  
+  # NUEVO: Celery Worker
+  celery_worker:
+    build: ./pruebatecno
+    working_dir: /pruebatecno
+    command: celery -A pruebatecno worker --loglevel=info --concurrency=2
+    environment:
+      DATABASE_URL: postgres://admin:admin@postgres:5432/pruebadb
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: django-db
+      PROM_ALERTS_PATH: /prometheus/alerts.yml
+      PROMETHEUS_BASE_URL: http://prometheus:9090
+      PROM_ENABLE_RELOAD: "true"
+    user: "1000:1000"
+    volumes:
+      - ./pruebatecno:/pruebatecno
+      - ./prometheus:/prometheus
+    networks:
+      - prueba
+    depends_on:
+      - postgres
+      - redis
+      - web
+    restart: unless-stopped
+
+  # NUEVO: Celery Beat (scheduler)
+  celery_beat:
+    build: ./pruebatecno
+    working_dir: /pruebatecno
+    command: celery -A pruebatecno beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      DATABASE_URL: postgres://admin:admin@postgres:5432/pruebadb
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: django-db
+    user: "1000:1000"
+    volumes:
+      - ./pruebatecno:/pruebatecno
+    networks:
+      - prueba
+    depends_on:
+      - postgres
+      - redis
+      - web
+    restart: unless-stopped
+
+  # NUEVO: Flower (UI para monitorear Celery) - OPCIONAL
+  flower:
+    build: ./pruebatecno
+    working_dir: /pruebatecno
+    command: celery -A pruebatecno flower --port=5555
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: django-db
+    networks:
+      - prueba
+    expose:
+      - "5555"
+    depends_on:
+      - redis
+      - celery_worker
+    restart: unless-stopped
     
   
 volumes:
