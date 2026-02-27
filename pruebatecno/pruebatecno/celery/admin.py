@@ -90,7 +90,7 @@ class CustomPeriodicTaskAdmin(admin.ModelAdmin):
         task = PeriodicTask.objects.get(pk=task_id)
         
         # Importar la tarea de Celery
-        from celery_app import celery_app
+        from pruebatecno.celery import celery_app
         
         # Ejecutar de forma asíncrona
         celery_app.send_task(
@@ -176,7 +176,7 @@ from django.shortcuts import render
 @staff_member_required
 def celery_monitor_view(request):
     """Panel de monitoreo personalizado."""
-    from celery_app import celery_app
+    from pruebatecno.celery import celery_app
     
     # Inspeccionar workers activos
     inspect = celery_app.control.inspect()

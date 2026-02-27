@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 import logging
 from pathlib import Path
-from kombu import Queue, Exchange
+from celery.schedules import crontab
 from logging.handlers import RotatingFileHandler
 
 
@@ -212,7 +212,6 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TIMEZONE = 'America/Santiago' #Ajuste de zona horaria para tareas con horas definidas
-ENABLE_UTC = True
 
 #Configuración de tiempo y warnings
 CELERY_TASK_TRACK_STARTED = True
@@ -262,6 +261,27 @@ CELERY_WORKER_TASK_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(processName)s] Ta
 # BEAT Guardado de tareas periódicas en la base de datos para persistencia y administración desde Django Admin
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_BEAT_SYNC_EVERY = 60 # Sincronización cada minuto para detectar cambios en tareas periódicas
+
+CELERY_BEAT_SCHEDULE = {
+
+    "comprobar sincronizacion de prometheus cada 5 minutos": {
+
+        "task": "monitoring.tasks.comprobar_sincronizacion",
+        "schedule": crontab(minute='*/5'), #comprobación cada 5 minutos
+        "options": {"queue": "low_priority"},
+    },
+    "validar integridad de las alertas cada dia": {
+
+        "task": "monitoring.tasks.validar_integridad_alertas",
+        "schedule": crontab(hour=0, minute=0), #comprobación diaria a medianoche
+        "options": {"queue": "low_priority"},
+    },
+    "limpiar resultados de tareas": {
+        "task": "django_celery_results.tasks.cleanup_task_results",
+        "schedule": crontab(hour=1, minute=0), #limpieza diaria a la 1 AM
+        "options": {"queue": "low_priority"},
+    },
+}
 
 #URL De Redis
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")

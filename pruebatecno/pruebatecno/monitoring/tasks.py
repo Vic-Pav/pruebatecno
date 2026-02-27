@@ -32,7 +32,7 @@ def comprobar_sincronizacion(self, alert_uuid=None):
         # Reintentar la tarea en caso de error
         raise self.retry(exc=exc)
     
-@shared_task(name="pruebatecno.tasks.validar_integridad_alertas")
+@shared_task(name="pruebatecno.tasks.sincronizacion")
 def validar_sincronizacion():
     """
     Verficación de postgres y Prometheus para asegurar que las alertas estén sincronizadas.
@@ -64,7 +64,7 @@ def validar_sincronizacion():
 
 @shared_task(
     bind=True,
-    name="monitoreo de recarga reglas Prometheus",
+    name="pruebatecno.tasks.recargar_reglas_prometheus",
     max_retries=5,
     default_retry_delay= 5, #reintento cada 5 segundos
 )   
