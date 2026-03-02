@@ -43,6 +43,21 @@ def populate_beat_schedule():
     )
     print("creada tarea de comprobación prometheus")
 
+    schedule_5min, _ = IntervalSchedule.objects.get_or_create(
+        every=5,
+        period=IntervalSchedule.MINUTES,
+        )
+
+    PeriodicTask.objects.get_or_create(
+        name="recargar reglas de prometheus cada 5 minutos",
+        defaults={
+            "task": "pruebatecno.tasks.recargar_reglas_prometheus",
+            "interval": schedule_5min,
+            "queue": "low_priority",
+            "enabled": True,
+        },
+    )
+    print("creada tarea de recarga de reglas prometheus")
 
     #comprobar integridad de alertas cada dia
     schedule_daily_midnight, _ = CrontabSchedule.objects.get_or_create(

@@ -14,7 +14,7 @@ class MetricsConfig(AppConfig):
             Uso de Celery
             """
             def encolar_tarea():
-                from monitoring.tasks import recargar_reglas_prometheus  # Importar la tarea de Celery dentro de la función para evitar problemas de importación circular
+                from pruebatecno.monitoring.tasks import recargar_reglas_prometheus  # Importar la tarea de Celery dentro de la función para evitar problemas de importación circular
         # ← Importar desde el módulo unificado
                 #Extraer UUID de la instancia
                 instance = kwargs.get('instance')

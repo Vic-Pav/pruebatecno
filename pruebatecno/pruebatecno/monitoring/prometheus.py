@@ -141,107 +141,160 @@ def get_all_rules(group_name: Optional[str] = None) -> List[Dict]:
 # FUNCIÓN DE ALTO NIVEL PARA DJANGO ADMIN
 # ============================================================================
 
-def generate_alert_rules(group_name: str = DEFAULT_GROUP_NAME):
+def generate_alert_rules(
+    group_name: str = DEFAULT_GROUP_NAME,
+    alert_uuid: Optional[str] = None,
+) -> int:
     """
     Genera reglas desde modelos Django y las fusiona con el YAML existente.
-    
-    Comportamiento:
-    - Lee el YAML completo
-    - Actualiza/añade alertas que están en la DB de Django
-    - Preserva alertas que NO están en la DB (creadas por API u otros medios)
-    - Escribe el YAML completo
-    - Recarga Prometheus
-    
-    Args:
-        group_name: Nombre del grupo donde se gestionarán las alertas del Admin
+
+    Si alert_uuid es None:
+      - sincroniza TODAS las alertas enabled (comportamiento tipo "reconcile total")
+
+    Si alert_uuid viene:
+      - sincroniza SOLO esa alerta (update puntual)
+      - si la alerta no existe o está disabled: elimina su regla (si existe) del YAML
     """
-    logger.info("generate_alert_rules called (merge mode, group='%s')", group_name)
-    
+    logger.info(
+        "generate_alert_rules called (group='%s', alert_uuid=%s)",
+        group_name,
+        alert_uuid,
+    )
+
     # Importaciones locales para evitar dependencias circulares
     try:
         from metrics.models import Alert
         from metrics.services.promql import build_promql
     except ImportError as e:
         logger.error("Cannot import Django models: %s", e)
-        return
-    
-    # 1. Leer el YAML actual
+        return 0
+
     data = load_rules()
-    
-    # 2. Buscar o crear el grupo objetivo
     gi = ensure_group(data, group_name)
     target_group = data["groups"][gi]
     existing_rules = target_group.get("rules", [])
     if not isinstance(existing_rules, list):
         existing_rules = []
-    
-    # 3. Generar reglas desde la base de datos de Django
-    db_alerts = {}  # {alert_name: rule_dict}
-    for alert in Alert.objects.filter(enabled=True):
-        try:
-            expr = build_promql(alert)
-        except Exception:
-            logger.exception("Skipping alert '%s' because building expr failed", alert.name)
-            continue
-        
-        db_alerts[alert.name] = {
-            "alert": alert.name,
-            "expr": expr,
-            "for": alert.duration,
-            "labels": {"severity": alert.severity, "managed_by": "django-admin"},
-            "annotations": {"summary": f"Alert {alert.name} triggered"},
-        }
-    
-    # 4. Merge inteligente: actualizar/añadir desde DB, preservar las demás
-    merged_rules = []
-    db_alert_names = set(db_alerts.keys())
-    processed_from_yaml = set()
-    
-    # Procesar reglas existentes en el YAML
-    for rule in existing_rules:
-        alert_name = rule.get("alert")
-        if not alert_name:
-            # Regla sin nombre, preservarla
-            merged_rules.append(rule)
-            continue
-        
-        if alert_name in db_alert_names:
-            # Esta alerta está en la DB: usar versión de la DB (source of truth)
-            merged_rules.append(db_alerts[alert_name])
-            processed_from_yaml.add(alert_name)
-            logger.debug("Updated alert '%s' from DB", alert_name)
+
+    # -----------------------------
+    # 1) Selección de alertas objetivo
+    # -----------------------------
+    qs = Alert.objects.all()
+
+    if alert_uuid is not None:
+        # Solo una alerta
+        qs = qs.filter(uuid=alert_uuid)
+
+    # Si es total: solo enabled=True
+    # Si es puntual: aquí conviene traerla aunque esté disabled para poder borrarla del YAML
+    if alert_uuid is None:
+        qs = qs.filter(enabled=True)
+
+    alert = qs.first() if alert_uuid is not None else None
+
+    # -----------------------------
+    # 2) Si es puntual y NO existe: no podemos construir regla -> nada que actualizar
+    #    (Opcional: podríamos borrar del YAML si supiéramos el nombre; pero no lo sabemos)
+    # -----------------------------
+    if alert_uuid is not None and alert is None:
+        logger.warning("Alert uuid=%s not found; nothing to update", alert_uuid)
+        return 0
+
+    # -----------------------------
+    # 3) Construir db_alerts (dict por nombre) solo para lo que corresponda
+    # -----------------------------
+    db_alerts: Dict[str, Dict] = {}
+
+    if alert_uuid is None:
+        # modo total (todas enabled)
+        for a in qs:
+            try:
+                expr = build_promql(a)
+            except Exception:
+                logger.exception("Skipping alert '%s' because building expr failed", a.name)
+                continue
+
+            db_alerts[a.name] = {
+                "alert": a.name,
+                "expr": expr,
+                "for": a.duration,
+                "labels": {"severity": a.severity, "managed_by": "django-admin"},
+                "annotations": {"summary": f"Alert {a.name} triggered"},
+            }
+    else:
+        # modo puntual (una alerta)
+        # Si está disabled, significa "quitarla del YAML"
+        if not alert.enabled:
+            logger.info("Alert '%s' is disabled; will remove rule from YAML if present", alert.name)
+            db_alerts = {}
         else:
-            # Esta alerta NO está en la DB: preservarla (creada por API)
+            try:
+                expr = build_promql(alert)
+            except Exception:
+                logger.exception("Cannot build expr for alert '%s' (uuid=%s)", alert.name, alert_uuid)
+                return 0
+
+            db_alerts[alert.name] = {
+                "alert": alert.name,
+                "expr": expr,
+                "for": alert.duration,
+                "labels": {"severity": alert.severity, "managed_by": "django-admin"},
+                "annotations": {"summary": f"Alert {alert.name} triggered"},
+            }
+
+    # -----------------------------
+    # 4) Merge:
+    #   - modo total: mismo merge que tenías (DB manda, API se preserva)
+    #   - modo puntual: actualizar/agregar/quitar solo esa alerta por nombre
+    # -----------------------------
+    if alert_uuid is None:
+        merged_rules = []
+        db_alert_names = set(db_alerts.keys())
+        processed_from_yaml = set()
+
+        for rule in existing_rules:
+            alert_name = rule.get("alert")
+            if not alert_name:
+                merged_rules.append(rule)
+                continue
+
+            if alert_name in db_alert_names:
+                merged_rules.append(db_alerts[alert_name])
+                processed_from_yaml.add(alert_name)
+            else:
+                merged_rules.append(rule)
+
+        for alert_name, rule in db_alerts.items():
+            if alert_name not in processed_from_yaml:
+                merged_rules.append(rule)
+
+    else:
+        # puntual
+        target_name = alert.name  # existe, porque validamos alert != None
+        merged_rules = []
+
+        for rule in existing_rules:
+            if rule.get("alert") == target_name:
+                # saltamos la regla vieja (la vamos a reemplazar o eliminar)
+                continue
             merged_rules.append(rule)
-            logger.debug("Preserved alert '%s' (not in DB)", alert_name)
-    
-    # Añadir alertas de la DB que no estaban en el YAML
-    for alert_name, rule in db_alerts.items():
-        if alert_name not in processed_from_yaml:
-            merged_rules.append(rule)
-            logger.debug("Added new alert '%s' from DB", alert_name)
-    
-    # 5. Actualizar el grupo con las reglas fusionadas
+
+        # si la alerta está enabled (db_alerts tiene la regla), la agregamos
+        if target_name in db_alerts:
+            merged_rules.append(db_alerts[target_name])
+
     target_group["rules"] = merged_rules
     data["groups"][gi] = target_group
-    
-    # 6. Guardar el archivo
-    try:
-        save_rules(data)
-        logger.info("Wrote %s: %d groups, %d rules in '%s' group (%d from DB, %d preserved)",
-                    ALERTS_PATH, len(data["groups"]), len(merged_rules), 
-                    group_name, len(db_alerts), len(merged_rules) - len(db_alerts))
-    except Exception:
-        logger.exception("Failed to write rules file")
-        return
-    
-    # 7. Validar (opcional, puede ser costoso)
-    # ok, output = validate_rules()
-    # if not ok:
-    #     logger.warning("Rules validation failed: %s", output)
-    
-    # 8. Recargar Prometheus
-    reload_prometheus()
+
+    # Guardar YAML
+    save_rules(data)
+
+    # Recargar Prometheus
+    ok, msg = reload_prometheus()
+    if not ok:
+        logger.warning("Prometheus reload failed after updating rules: %s", msg)
+
+    return len(merged_rules)
 
 
 # ============================================================================
