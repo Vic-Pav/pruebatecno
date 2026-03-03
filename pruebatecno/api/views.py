@@ -11,6 +11,7 @@ from pruebatecno.monitoring.prometheus import (
     load_rules,
     get_all_rules,
     find_rule,
+    get_rule_by_identifier,
     create_rule,
     update_rule,
     patch_rule,
@@ -41,13 +42,14 @@ class AlertRuleViewSet(viewsets.ViewSet):
         return Response(items, status=200)
 
     def retrieve(self, request, pk=None):
-        """Obtiene una alerta específica por nombre."""
-        data = load_rules()
-        gi, ri = find_rule(data, pk)
-        if gi < 0:
+        """Obtiene una alerta específica por id o nombre."""
+        # aseguramos que la lista/índice de reglas esté cargado en este proceso
+        # (get_all_rules construye RULES y RULES_BY_ID)
+        get_all_rules()
+        # intentamos buscar por id (rápido) o por nombre (compatibilidad)
+        rule = get_rule_by_identifier(pk)
+        if not rule:
             return Response({"detail": "Alert rule not found"}, status=404)
-        rule = dict(data["groups"][gi]["rules"][ri])
-        rule["group"] = data["groups"][gi]["name"]
         return Response(rule, status=200)
 
     def create(self, request):
@@ -83,8 +85,15 @@ class AlertRuleViewSet(viewsets.ViewSet):
             return Response(ser.errors, status=400)
         
         item = ser.validated_data
+        # resolve pk (could be id or alert name)
+        get_all_rules()
+        found = get_rule_by_identifier(pk)
+        if not found:
+            return Response({"detail": "Alert rule not found"}, status=404)
+        alert_name = found.get("alert")
+
         success, msg, rule = update_rule(
-            alert_name=pk,
+            alert_name=alert_name,
             expr=item["expr"],
             duration=item.get("for", ""),
             labels=item.get("labels"),
@@ -104,7 +113,14 @@ class AlertRuleViewSet(viewsets.ViewSet):
 
     def partial_update(self, request, pk=None):
         """Actualiza parcialmente una alerta (PATCH)."""
-        success, msg, rule = patch_rule(pk, request.data)
+        # resolve pk (id or name)
+        get_all_rules()
+        found = get_rule_by_identifier(pk)
+        if not found:
+            return Response({"detail": "Alert rule not found"}, status=404)
+        alert_name = found.get("alert")
+
+        success, msg, rule = patch_rule(alert_name, request.data)
         
         if not success:
             status_code = 404 if "not found" in msg else 400
@@ -118,7 +134,14 @@ class AlertRuleViewSet(viewsets.ViewSet):
 
     def destroy(self, request, pk=None):
         """Elimina una alerta."""
-        success, msg, rule = delete_rule(pk)
+        # resolve pk (id or name)
+        get_all_rules()
+        found = get_rule_by_identifier(pk)
+        if not found:
+            return Response({"detail": "Alert rule not found"}, status=404)
+        alert_name = found.get("alert")
+
+        success, msg, rule = delete_rule(alert_name)
         
         if not success:
             status_code = 404 if "not found" in msg else 400

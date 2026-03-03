@@ -266,13 +266,13 @@ CELERY_BEAT_SCHEDULE = {
 
     "comprobar sincronizacion de prometheus cada 5 minutos": {
 
-        "task": "monitoring.tasks.comprobar_sincronizacion",
+        "task": "pruebatecno.tasks.comprobar_sincronizacion",
         "schedule": crontab(minute='*/5'), #comprobación cada 5 minutos
         "options": {"queue": "low_priority"},
     },
     "validar integridad de las alertas cada dia": {
 
-        "task": "monitoring.tasks.validar_integridad_alertas",
+        "task": "pruebatecno.tasks.validar_integridad_alertas",
         "schedule": crontab(hour=0, minute=0), #comprobación diaria a medianoche
         "options": {"queue": "low_priority"},
     },

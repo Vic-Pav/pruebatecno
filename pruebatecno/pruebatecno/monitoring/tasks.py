@@ -56,3 +56,4 @@ def validar_integridad_alertas():
     from metrics.models import Alert
     # ... tu lógica ...
     return {"status": "ok"}
+

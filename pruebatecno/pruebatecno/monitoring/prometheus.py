@@ -2,10 +2,11 @@ import os
 import tempfile
 import subprocess
 import logging
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, Tuple, List, Optional, Any
 
 import requests
 import yaml
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,9 @@ PROM_ENABLE_RELOAD = os.getenv("PROM_ENABLE_RELOAD", "true").lower() == "true"
 PROMTOOL_PATH = ("PROMTOOL_PATH", "promtool") 
 ENABLE_PROOMTOOL_VALIDATION = os.getenv("ENABLE_PROMTOOL_VALIDATION", "false").lower()
 DEFAULT_GROUP_NAME = "alerts"
+RULES: List[Dict[str, Any]] = []
+RULES_BY_ID: Dict[str,Dict[str,Any]] = {}
+NEXT_RULE_ID: int = 1
 
 # ============================================================================
 # FUNCIONES DE BAJO NIVEL (usadas por Admin y API REST)
@@ -134,9 +138,70 @@ def get_all_rules(group_name: Optional[str] = None) -> List[Dict]:
             rule_copy = dict(rule)
             rule_copy["group"] = group.get("name")
             rules.append(rule_copy)
+    # Store in module-level cache and ensure each rule has an id and the RULES_BY_ID index
+    global RULES
+    RULES = rules
+    try:
+        ensure_rule_ids(RULES)
+    except Exception:
+        # ensure_rule_ids should be safe; on unexpected errors, log and continue
+        logger.exception("ensure_rule_ids failed")
     return rules
 
+def _make_rule_id(rule: Dict[str, Any]) -> str:
+    # Generador simple: contador incremental (1,2,3...). Se reinicia
+    # cada vez que se reconstruye el índice en `ensure_rule_ids`.
+    global NEXT_RULE_ID
+    val = str(NEXT_RULE_ID)
+    NEXT_RULE_ID += 1
+    return val
 
+def ensure_rule_ids(rules_list: List[Dict[str, Any]]) -> None:
+    # Preserve any existing numeric `id` found in the YAML and reuse it.
+    # Then assign incremental ids only to rules that don't have an `id`.
+    global NEXT_RULE_ID
+    RULES_BY_ID.clear()
+
+    max_id = 0
+    # First pass: register existing ids
+    for r in rules_list:
+        existing = r.get('id')
+        if existing is None:
+            continue
+        try:
+            eid = int(existing)
+            r['id'] = str(eid)
+            RULES_BY_ID[r['id']] = r
+            if eid > max_id:
+                max_id = eid
+        except Exception:
+            # Non-numeric ids are preserved as strings but don't affect the counter
+            r['id'] = str(existing)
+            RULES_BY_ID[r['id']] = r
+
+    # Start next id after the largest numeric existing id
+    NEXT_RULE_ID = max_id + 1
+
+    # Second pass: assign ids to rules that lack one
+    for r in rules_list:
+        if 'id' in r and r['id'] is not None:
+            continue
+        new_id = str(NEXT_RULE_ID)
+        NEXT_RULE_ID += 1
+        r['id'] = new_id
+        RULES_BY_ID[new_id] = r
+
+def get_rule_by_identifier(identifier: str, rules_list: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
+    # lookup por id rápido
+    rule = RULES_BY_ID.get(identifier)
+    if rule:
+        return rule
+    # fallback por nombre (campo 'alert' en tu JSON)
+    search_list = rules_list if rules_list is not None else globals().get('RULES', [])
+    for r in search_list:
+        if r.get('alert') == identifier or r.get('name') == identifier:
+            return r
+    return None
 # ============================================================================
 # FUNCIÓN DE ALTO NIVEL PARA DJANGO ADMIN
 # ============================================================================
@@ -347,6 +412,14 @@ def create_rule(alert_name: str, expr: str, duration: str = "",
     reload_prometheus()
     
     rule["group"] = group_name
+    # Rebuild index and return the persisted rule (with assigned id)
+    try:
+        rules = get_all_rules()
+        found = get_rule_by_identifier(alert_name, rules)
+        if found:
+            return True, "created", found
+    except Exception:
+        logger.exception("Failed to rebuild rules index after create")
     return True, "created", rule
 
 
@@ -395,6 +468,14 @@ def update_rule(alert_name: str, expr: str, duration: str = "",
     reload_prometheus()
     
     rule["group"] = target_group
+    # Rebuild index and return the persisted rule (with assigned id)
+    try:
+        rules = get_all_rules()
+        found = get_rule_by_identifier(alert_name, rules)
+        if found:
+            return True, "updated", found
+    except Exception:
+        logger.exception("Failed to rebuild rules index after update")
     return True, "updated", rule
 
 
@@ -449,6 +530,14 @@ def patch_rule(alert_name: str, updates: Dict) -> Tuple[bool, str, Optional[Dict
     reload_prometheus()
     
     rule["group"] = current_group
+    # Rebuild index and return the persisted rule (with assigned id)
+    try:
+        rules = get_all_rules()
+        found = get_rule_by_identifier(rule.get("alert") or alert_name, rules)
+        if found:
+            return True, "patched", found
+    except Exception:
+        logger.exception("Failed to rebuild rules index after patch")
     return True, "patched", rule
 
 
@@ -477,5 +566,14 @@ def delete_rule(alert_name: str) -> Tuple[bool, str, Optional[Dict]]:
     #    return False, f"Validation failed: {output}", None
     
     reload_prometheus()
-    
+    # Rebuild index and attach id to the removed object if available
+    try:
+        rules = get_all_rules()
+        found = get_rule_by_identifier(removed.get("alert"), rules)
+        if found:
+            removed_id = found.get("id")
+            removed["id"] = removed_id
+    except Exception:
+        logger.exception("Failed to rebuild rules index after delete")
+
     return True, "deleted", removed
