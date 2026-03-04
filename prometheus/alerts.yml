@@ -82,10 +82,3 @@ groups:
       managed_by: api
     annotations:
       summary: CPU usage above 80%
-  - alert: TestAlert
-    expr: up == 0
-    labels:
-      severity: info
-      managed_by: api
-    annotations:
-      summary: Test

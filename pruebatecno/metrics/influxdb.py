@@ -27,3 +27,12 @@ def write_request_metric(path, method, status_code, duration_ms):
 
     write_api.write(bucket=INFLUX_BUCKET, record=point)
 
+def write_pc_metrics(cpu_percent, memory_percent):
+    point = (
+        Point("metricas_pc")
+        .field("Uso_CPU", cpu_percent)
+        .field("Uso_RAM", memory_percent)
+    )
+
+    write_api.write(bucket=INFLUX_BUCKET, record=point)
+

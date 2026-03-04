@@ -5,6 +5,13 @@ Comando para crear las tareas por defecto en la base de datos
 
 from django.core.management.base import BaseCommand
 from pruebatecno.pruebatecno.celery.tareas_programadas import populate_beat_schedule
+"""
+Comando para crear las tareas por defecto en la base de datos
+
+"""
+
+from django.core.management.base import BaseCommand
+from pruebatecno.pruebatecno.celery.tareas_programadas import populate_beat_schedule
 
 class Command(BaseCommand):
     help = 'Crea las tareas periódicas por defecto en la base de datos para Celery Beat'
