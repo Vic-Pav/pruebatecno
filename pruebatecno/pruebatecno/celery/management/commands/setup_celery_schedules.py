@@ -27,17 +27,3 @@ class Command(BaseCommand):
                 'Puedes revisar y administrar las tareas periódicas desde el panel de administración de Django.'
             )
         )
-class Command(BaseCommand):
-    help = 'Crea las tareas periódicas por defecto en la base de datos para Celery Beat'
-
-    def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS('Tareas periódicas por defecto creadas o verificadas exitosamente.'))
-
-        populate_beat_schedule()
-
-        self.stdout.write(self.style.SUCCESS('Tareas periódicas por defecto creadas o verificadas exitosamente.'))
-        self.stdout.write(
-            self.style.SUCCESS(
-                'Puedes revisar y administrar las tareas periódicas desde el panel de administración de Django.'
-            )
-        )

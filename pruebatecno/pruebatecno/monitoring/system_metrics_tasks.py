@@ -5,7 +5,10 @@ from metrics.influxdb import write_pc_metrics
 
 logger = get_task_logger(__name__)
 
-@shared_task(bind=True, name="pruebatecno.tasks.capturar_metricas_sistema")
+@shared_task(
+        bind=True, 
+        name="pruebatecno.tasks.capturar_metricas_sistema"
+        )
 def capturar_metricas_sistema(self):
     payload = build_system_payload()
     cpu_percent = payload.get("cpu_percent")
