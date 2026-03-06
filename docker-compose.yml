@@ -14,8 +14,8 @@ services:
       INFLUX_ORG: prueba
       INFLUX_BUCKET: metrics
       DEBUG: "False"
-      PROM_ALERTS_PATH: /prometheus/alerts.yml
-      PROMETHEUS_BASE_URL: http://prometheus:9090
+      PROM_ALERTS_PATH: /etc/prometheus/alerts.yml
+      PROMETHEUS_BASE_URL: http://prometheus:9090/prometheus
       PROMTOOL_PATH: promtool
       PROM_ENABLE_RELOAD: "true"
       ENABLE_PROMTOOL_VALIDATION: "false"
@@ -24,6 +24,7 @@ services:
     volumes:
       - ./pruebatecno:/pruebatecno
       - ./prometheus:/prometheus
+      - ./prometheus/rules:/etc/prometheus/alerts.yml:rw
     networks:
       - prueba
     expose:
@@ -55,7 +56,7 @@ services:
     image: prom/prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:rw
-      - ./prometheus/alerts.yml:/etc/prometheus/rules/alerts.yml:rw
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:rw
     networks:
       - prueba
     command: 
@@ -183,8 +184,8 @@ services:
       DATABASE_URL: postgres://admin:admin@postgres:5432/pruebadb
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: django-db
-      PROM_ALERTS_PATH: /prometheus/alerts.yml
-      PROMETHEUS_BASE_URL: http://prometheus:9090
+      PROM_ALERTS_PATH: /etc/prometheus/alerts.yml
+      PROMETHEUS_BASE_URL: http://prometheus:9090/prometheus
       PROM_ENABLE_RELOAD: "true"
     user: "1000:1000"
     volumes:

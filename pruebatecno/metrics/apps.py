@@ -8,6 +8,7 @@ class MetricsConfig(AppConfig):
         from django.db.models.signals import post_save, post_delete
         from metrics.models import Alert, AlertCondition
         from django.db import transaction
+        from . import signals 
 
         def schedule_sync_to_prometheus(**kwargs):
             """

@@ -306,7 +306,7 @@ def generate_alert_rules(
                 "alert": a.name,
                 "expr": expr,
                 "for": a.duration,
-                "labels": {"severity": a.severity, "managed_by": "django-admin", "alert_id": str(a.id)},
+                "labels": {"severity": alert.severity, "managed_by": "django-admin", "alert_id": str(alert.id)},
                 "annotations": {"summary": f"Alert {a.name} triggered"},
             }
     else:

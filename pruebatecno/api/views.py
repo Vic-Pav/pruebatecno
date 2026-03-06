@@ -136,7 +136,7 @@ class AlertRuleViewSet(viewsets.ViewSet):
                 "rule": rule,
             },
             status=201 if created else 200,
-    )
+        )
     def update(self, request, pk=None):
         """
         PUT: actualiza completamente una alerta en BD por Alert.id (pk numérico) o nombre,
@@ -167,10 +167,12 @@ class AlertRuleViewSet(viewsets.ViewSet):
             enabled = alert_obj.enabled
 
         logic = item.get("logic")
-        conditions = item.get("conditions", [])
+        conditions = item.get("conditions", None)
 
+        if conditions is None:
+            conditions = list(alert_obj.conditions.values("metric", "operator", "threshold"))
         if not conditions:
-            return Response({"detail": "conditions es requerido en PUT"}, status=400)
+            return Response({"detail": "conditions es requerido"}, status=400)
 
         with transaction.atomic():
             alert_obj.severity = severity
