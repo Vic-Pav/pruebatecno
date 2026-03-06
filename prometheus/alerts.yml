@@ -1,74 +1,19 @@
 groups:
-- name: django-managed-alerts
-  rules:
-  - alert: Prueba combinada CPU y RAM
-    annotations:
-      summary: Alert Prueba combinada CPU y RAM triggered
-    expr: Uso_CPU > 2.0 and Uso_RAM < 10.0
-    for: 15s
-    labels:
-      severity: critical
-  - alert: Prueba RAM
-    annotations:
-      summary: Alert Prueba RAM triggered
-    expr: Uso_RAM != 59.0
-    for: 3m
-    labels:
-      severity: info
-  - alert: Alerta CPU
-    annotations:
-      summary: Alert Alerta CPU triggered
-    expr: Uso_CPU > 2.0
-    for: 70s
-    labels:
-      severity: info
 - name: alerts
   rules:
-  - alert: ServiceDown
-    expr: up == 0
+  - alert: Prueba RAM
+    expr: cpu_percent < 80.0
+    for: 1m
+    labels:
+      severity: critical
+      managed_by: django-admin
+    annotations:
+      summary: Alert Prueba RAM triggered
+  - alert: Alerta unica RAM
+    expr: 'memory_percent < 90.0'
     for: 10s
     labels:
-      severity: critical
-      team: platform
-      managed_by: api
-    annotations:
-      summary: Service {{ $labels.job }} is down
-      description: The service has been down for more than 2 minutes
-  - alert: HighCPUUsage
-    expr: avg_over_time(Uso_CPU[5m]) > 80
-    for: 20s
-    labels:
       severity: warning
-      component: cpu
-      environment: production
-      managed_by: api
+      managed_by: django-admin
     annotations:
-      summary: High CPU usage detected
-      description: CPU usage has been above 80% for 5 minutes
-      runbook_url: https://wiki.example.com/runbooks/high-cpu
-  - alert: Critical CPU
-    expr: avg_over_time(Uso_CPU[5m]) > 80
-    for: 2s
-    labels:
-      severity: critical
-      component: cpu
-      managed_by: api
-    annotations:
-      summary: CPU usage above 80%
-  - alert: Critical RAM
-    expr: avg_over_time(Uso_RAM[5m]) < 80
-    for: 2m
-    labels:
-      severity: critical
-      component: ram
-      managed_by: api
-    annotations:
-      summary: RAM usage below 80%
-  - alert: TestAlerta
-    expr: up == 0
-    for: 20s
-    labels:
-      severity: info
-      managed_by: api
-    annotations:
-      summary: Test
+      summary: Alert Alerta unica RAM triggered
