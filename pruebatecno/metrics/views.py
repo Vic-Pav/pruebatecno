@@ -1,5 +1,6 @@
 import os
 import logging
+from django.db import transaction
 
 from django.http import HttpRequest
 from django_prometheus import exports

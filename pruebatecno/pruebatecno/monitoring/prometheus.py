@@ -192,14 +192,37 @@ def ensure_rule_ids(rules_list: List[Dict[str, Any]]) -> None:
         RULES_BY_ID[new_id] = r
 
 def get_rule_by_identifier(identifier: str, rules_list: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
-    # lookup por id rápido
-    rule = RULES_BY_ID.get(identifier)
+    """
+    Resuelve una regla desde YAML a partir de:
+      1) Alert.id (si identifier es numérico) => busca en BD y mapea a Alert.name
+      2) id generado legacy (RULES_BY_ID)
+      3) nombre (rule['alert'] o rule['name'])
+    """
+    search_list = rules_list if rules_list is not None else globals().get("RULES", [])
+
+    # 1) Si es numérico: interpretarlo como Alert.id y mapear a nombre
+    #    (Sin agregar campos al YAML)
+    try:
+        int_id = int(str(identifier))
+        try:
+            from metrics.models import Alert
+            db_alert = Alert.objects.filter(id=int_id).only("name").first()
+            if db_alert:
+                identifier = db_alert.name
+        except Exception:
+            # Si la BD no está disponible en este contexto, seguimos con fallback
+            logger.exception("Failed to resolve Alert.id=%s to name", int_id)
+    except (TypeError, ValueError):
+        pass
+
+    # 2) Legacy: lookup por id generado (si todavía existe)
+    rule = RULES_BY_ID.get(str(identifier))
     if rule:
         return rule
-    # fallback por nombre (campo 'alert' en tu JSON)
-    search_list = rules_list if rules_list is not None else globals().get('RULES', [])
+
+    # 3) Fallback por nombre
     for r in search_list:
-        if r.get('alert') == identifier or r.get('name') == identifier:
+        if r.get("alert") == identifier or r.get("name") == identifier:
             return r
     return None
 # ============================================================================
@@ -208,22 +231,22 @@ def get_rule_by_identifier(identifier: str, rules_list: Optional[List[Dict[str, 
 
 def generate_alert_rules(
     group_name: str = DEFAULT_GROUP_NAME,
-    alert_uuid: Optional[str] = None,
+    alert_id: Optional[int] = None,
 ) -> int:
     """
     Genera reglas desde modelos Django y las fusiona con el YAML existente.
 
-    Si alert_uuid es None:
+    Si alert_id es None:
       - sincroniza TODAS las alertas enabled (comportamiento tipo "reconcile total")
 
-    Si alert_uuid viene:
+    Si alert_id viene:
       - sincroniza SOLO esa alerta (update puntual)
       - si la alerta no existe o está disabled: elimina su regla (si existe) del YAML
     """
     logger.info(
-        "generate_alert_rules called (group='%s', alert_uuid=%s)",
+        "generate_alert_rules called (group='%s', alert_id=%s)",
         group_name,
-        alert_uuid,
+        alert_id,
     )
 
     # Importaciones locales para evitar dependencias circulares
@@ -246,23 +269,23 @@ def generate_alert_rules(
     # -----------------------------
     qs = Alert.objects.all()
 
-    if alert_uuid is not None:
+    if alert_id is not None:
         # Solo una alerta
-        qs = qs.filter(uuid=alert_uuid)
+        qs = qs.filter(id=alert_id)
 
     # Si es total: solo enabled=True
     # Si es puntual: aquí conviene traerla aunque esté disabled para poder borrarla del YAML
-    if alert_uuid is None:
+    if alert_id is None:
         qs = qs.filter(enabled=True)
 
-    alert = qs.first() if alert_uuid is not None else None
+    alert = qs.first() if alert_id is not None else None
 
     # -----------------------------
     # 2) Si es puntual y NO existe: no podemos construir regla -> nada que actualizar
     #    (Opcional: podríamos borrar del YAML si supiéramos el nombre; pero no lo sabemos)
     # -----------------------------
-    if alert_uuid is not None and alert is None:
-        logger.warning("Alert uuid=%s not found; nothing to update", alert_uuid)
+    if alert_id is not None and alert is None:
+        logger.warning("Alert id=%s not found; nothing to update", alert_id)
         return 0
 
     # -----------------------------
@@ -270,7 +293,7 @@ def generate_alert_rules(
     # -----------------------------
     db_alerts: Dict[str, Dict] = {}
 
-    if alert_uuid is None:
+    if alert_id is None:
         # modo total (todas enabled)
         for a in qs:
             try:
@@ -283,7 +306,7 @@ def generate_alert_rules(
                 "alert": a.name,
                 "expr": expr,
                 "for": a.duration,
-                "labels": {"severity": a.severity, "managed_by": "django-admin"},
+                "labels": {"severity": a.severity, "managed_by": "django-admin", "alert_id": str(a.id)},
                 "annotations": {"summary": f"Alert {a.name} triggered"},
             }
     else:
@@ -296,7 +319,7 @@ def generate_alert_rules(
             try:
                 expr = build_promql(alert)
             except Exception:
-                logger.exception("Cannot build expr for alert '%s' (uuid=%s)", alert.name, alert_uuid)
+                logger.exception("Cannot build expr for alert '%s' (id=%s)", alert.name, alert_id)
                 return 0
 
             db_alerts[alert.name] = {
@@ -312,7 +335,7 @@ def generate_alert_rules(
     #   - modo total: mismo merge que tenías (DB manda, API se preserva)
     #   - modo puntual: actualizar/agregar/quitar solo esa alerta por nombre
     # -----------------------------
-    if alert_uuid is None:
+    if alert_id is None:
         merged_rules = []
         db_alert_names = set(db_alerts.keys())
         processed_from_yaml = set()

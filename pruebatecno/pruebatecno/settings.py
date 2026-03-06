@@ -112,7 +112,7 @@ INSTALLED_APPS = [
     #apps propias
     'metrics',
     'api',
-    #"monitoring",
+    "pruebatecno.monitoring",
 ]
 
 MIDDLEWARE = [

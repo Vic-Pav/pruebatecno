@@ -18,15 +18,15 @@ class MetricsConfig(AppConfig):
         # ← Importar desde el módulo unificado
                 #Extraer UUID de la instancia
                 instance = kwargs.get('instance')
-                alert_uuid = None
+                alert_id = None
 
                 if isinstance(instance, Alert):
-                    alert_uuid = instance.uuid
+                    alert_id = instance.id
                 elif isinstance(instance, AlertCondition):
-                    alert_uuid = instance.alert.uuid        
+                    alert_id = instance.alert.id        
                 
                 #cola de tarea asincrona
-                recargar_reglas_prometheus.delay(alert_uuid=str(alert_uuid))
+                recargar_reglas_prometheus.delay(alert_uuid=str(alert_id))
 
             #espera a la finalizacion de la transacción para encolar la tarea, asegurando que los datos estén guardados antes de la sincronización
             transaction.on_commit(encolar_tarea)

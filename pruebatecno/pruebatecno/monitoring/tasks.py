@@ -9,20 +9,20 @@ logger = get_task_logger(__name__)
     max_retries=3,
     default_retry_delay=10,
 )
-def comprobar_sincronizacion(self, alert_uuid=None):
+def comprobar_sincronizacion(self, alert_id=None):
     """
-    Reconcilia reglas (total si alert_uuid=None, puntual si viene UUID).
+    Reconcilia reglas (total si alert_id=None, puntual si viene ID).
     """
     try:
         from monitoring.prometheus import generate_alert_rules
 
-        logger.info("Inicio comprobar_sincronizacion(alert_uuid=%s)", alert_uuid)
-        rules_count = generate_alert_rules(alert_uuid=alert_uuid)  # ahora sí retorna número
+        logger.info("Inicio comprobar_sincronizacion(alert_id=%s)", alert_id)
+        rules_count = generate_alert_rules(alert_id=alert_id)  # ahora sí retorna número
 
         return {
             "status": "success",
             "rules_count": rules_count,
-            "alert_uuid": alert_uuid or "all",
+            "alert_id": alert_id or "all",
         }
     except Exception as exc:
         logger.error("Error en comprobar_sincronizacion: %s", exc, exc_info=True)
@@ -43,7 +43,7 @@ def recargar_reglas_prometheus(self, alert_uuid=None):
         from monitoring.prometheus import generate_alert_rules
 
         logger.info("Inicio recargar_reglas_prometheus(alert_uuid=%s)", alert_uuid)
-        rules_count = generate_alert_rules(alert_uuid=alert_uuid)
+        rules_count = generate_alert_rules(alert_id=alert_uuid)
 
         return {"status": "success", "rules_count": rules_count}
     except Exception as exc:
