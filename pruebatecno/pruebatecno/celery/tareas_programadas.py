@@ -89,6 +89,9 @@ def populate_beat_schedule():
             "enabled": True,
         },
     )
+
+    #
+
     print("creada tarea de limpieza de resultados de tareas")
 
     print("\nTareas por defecto creadas existosamente.")

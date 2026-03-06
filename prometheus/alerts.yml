@@ -46,15 +46,6 @@ groups:
       summary: High CPU usage detected
       description: CPU usage has been above 80% for 5 minutes
       runbook_url: https://wiki.example.com/runbooks/high-cpu
-  - alert: HighCPU
-    expr: avg_over_time(Uso_CPU[5m]) > 80
-    for: 3s
-    labels:
-      severity: critical
-      component: cpu
-      managed_by: api
-    annotations:
-      summary: CPU usage above 80%
   - alert: Critical CPU
     expr: avg_over_time(Uso_CPU[5m]) > 80
     for: 2s
@@ -73,12 +64,11 @@ groups:
       managed_by: api
     annotations:
       summary: RAM usage below 80%
-  - alert: Test RAM
-    expr: avg_over_time(Uso_RAM[5m]) < 80
-    for: 1m
+  - alert: TestAlerta
+    expr: up == 0
+    for: 20s
     labels:
-      severity: critical
-      component: cpu
+      severity: info
       managed_by: api
     annotations:
-      summary: CPU usage above 80%
+      summary: Test
