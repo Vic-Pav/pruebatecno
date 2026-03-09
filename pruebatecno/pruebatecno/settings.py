@@ -262,27 +262,6 @@ CELERY_WORKER_TASK_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(processName)s] Ta
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_BEAT_SYNC_EVERY = 60 # Sincronización cada minuto para detectar cambios en tareas periódicas
 
-CELERY_BEAT_SCHEDULE = {
-
-    "comprobar sincronizacion de prometheus cada 5 minutos": {
-
-        "task": "pruebatecno.tasks.comprobar_sincronizacion",
-        "schedule": crontab(minute='*/5'), #comprobación cada 5 minutos
-        "options": {"queue": "low_priority"},
-    },
-    "validar integridad de las alertas cada dia": {
-
-        "task": "pruebatecno.tasks.validar_integridad_alertas",
-        "schedule": crontab(hour=0, minute=0), #comprobación diaria a medianoche
-        "options": {"queue": "low_priority"},
-    },
-    "limpiar resultados de tareas": {
-        "task": "django_celery_results.tasks.cleanup_task_results",
-        "schedule": crontab(hour=1, minute=0), #limpieza diaria a la 1 AM
-        "options": {"queue": "low_priority"},
-    },
-}
-
 #URL De Redis
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
