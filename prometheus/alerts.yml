@@ -1,19 +1,45 @@
 groups:
 - name: alerts
   rules:
-  - alert: Prueba RAM
-    expr: cpu_percent < 80.0
+  - alert: HighCPU TESTEO DE LIVE ACTION POST 2
+    expr: Uso_CPU > 80.0
     for: 1m
     labels:
-      severity: critical
+      severity: warning
       managed_by: django-admin
+      alert_id: '10'
     annotations:
-      summary: Alert Prueba RAM triggered
+      summary: Alert HighCPU TESTEO DE LIVE ACTION POST 2 triggered
+  - alert: Prueba combinada CPU y RAM
+    expr: cpu_percent < 5.0 and memory_percet < 10.0
+    for: 20s
+    labels:
+      severity: warning
+      managed_by: django-admin
+      alert_id: '11'
+    annotations:
+      summary: Alert Prueba combinada CPU y RAM triggered
   - alert: Alerta unica RAM
-    expr: 'memory_percent < 90.0'
+    expr: memory_percent < 10.0
     for: 10s
     labels:
       severity: warning
       managed_by: django-admin
     annotations:
       summary: Alert Alerta unica RAM triggered
+  - alert: Prueba RAM
+    expr: cpu_percent < 80.0 and cpu_percent > 10.0
+    for: 30s
+    labels:
+      severity: critical
+      managed_by: django-admin
+    annotations:
+      summary: Alert Prueba RAM triggered
+  - alert: HighCPU TESTEO DE LIVE ACTION POST 238283
+    expr: Uso_CPU > 80.0
+    for: 1m
+    labels:
+      severity: warning
+      managed_by: django-admin
+    annotations:
+      summary: Alert HighCPU TESTEO DE LIVE ACTION POST 238283 triggered

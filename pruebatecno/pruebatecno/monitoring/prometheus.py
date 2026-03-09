@@ -2,6 +2,7 @@ import os
 import tempfile
 import subprocess
 import logging
+import shutil
 from typing import Dict, Tuple, List, Optional, Any
 
 import requests
@@ -14,8 +15,8 @@ logger = logging.getLogger(__name__)
 ALERTS_PATH = os.getenv("PROM_ALERTS_PATH") or os.getenv("PROM_RULES_PATH", "/prometheus/alerts.yml")
 PROM_BASE_URL = os.getenv("PROMETHEUS_BASE_URL", "http://prometheus:9090")
 PROM_ENABLE_RELOAD = os.getenv("PROM_ENABLE_RELOAD", "true").lower() == "true"
-PROMTOOL_PATH = ("PROMTOOL_PATH", "promtool") 
-ENABLE_PROOMTOOL_VALIDATION = os.getenv("ENABLE_PROMTOOL_VALIDATION", "false").lower()
+PROMTOOL_PATH = os.getenv("PROMTOOL_PATH", "promtool") 
+ENABLE_PROOMTOOL_VALIDATION = os.getenv("ENABLE_PROMTOOL_VALIDATION", "false").lower()== "true"
 DEFAULT_GROUP_NAME = "alerts"
 RULES: List[Dict[str, Any]] = []
 RULES_BY_ID: Dict[str,Dict[str,Any]] = {}
@@ -42,20 +43,43 @@ def load_rules(path: str = ALERTS_PATH) -> Dict:
     return {"groups": groups}
 
 
+
 def save_rules(data: Dict, path: str = ALERTS_PATH) -> None:
-    """Escritura atómica de alerts.yml."""
+    """Escritura robusta de alerts.yml (fallback a /tmp si el dir destino no permite temporales)."""
     dirpath = os.path.dirname(path) or "."
     os.makedirs(dirpath, mode=0o755, exist_ok=True)
-    
-    fd, tmpfile = tempfile.mkstemp(prefix="alerts_", suffix=".yml", dir=dirpath)
+
+    rendered = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
+
+    # 1) Intento normal: temporal en el mismo directorio (renombrado atómico)
+    try:
+        fd, tmpfile = tempfile.mkstemp(prefix="alerts_", suffix=".yml", dir=dirpath)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(rendered)
+            os.replace(tmpfile, path)
+            os.chmod(path, 0o644)
+            return
+        finally:
+            try:
+                os.remove(tmpfile)
+            except Exception:
+                pass
+    except PermissionError:
+        logger.warning("No write permission to create temp file in %s; falling back to /tmp", dirpath)
+
+    # 2) Fallback: temporal en /tmp y copia al destino
+    fd, tmpfile = tempfile.mkstemp(prefix="alerts_", suffix=".yml", dir="/tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
-        os.replace(tmpfile, path)
+            f.write(rendered)
+
+        # Copia el contenido al destino (no requiere permiso de escritura en el directorio para renombrar;
+        # requiere permiso para escribir el archivo destino).
+        with open(tmpfile, "r", encoding="utf-8") as src, open(path, "w", encoding="utf-8") as dst:
+            shutil.copyfileobj(src, dst)
+
         os.chmod(path, 0o644)
-    except Exception as e:
-        logger.exception("Failed to save rules to %s", path)
-        raise
     finally:
         try:
             os.remove(tmpfile)
@@ -306,7 +330,7 @@ def generate_alert_rules(
                 "alert": a.name,
                 "expr": expr,
                 "for": a.duration,
-                "labels": {"severity": alert.severity, "managed_by": "django-admin", "alert_id": str(alert.id)},
+                "labels": {"severity": a.severity, "managed_by": "django-admin", "alert_id": str(a.id)},
                 "annotations": {"summary": f"Alert {a.name} triggered"},
             }
     else:
